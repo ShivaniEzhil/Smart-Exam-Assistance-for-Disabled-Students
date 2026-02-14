@@ -547,6 +547,40 @@ h2 {
 }
 .answer-box h4 { margin-bottom: 8px; color: #1b5e20; }
 
+.answer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.btn-listen-ans {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 2px solid #6a1b9a;
+  border-radius: 20px;
+  background: #f3e5f5;
+  color: #6a1b9a;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-listen-ans:hover {
+  background: #6a1b9a;
+  color: #fff;
+}
+.btn-listen-ans:focus-visible {
+  outline: 3px solid #ff9800;
+  outline-offset: 2px;
+}
+.btn-listen-ans svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* Recording indicator */
 .recording-indicator {
   background: #ffebee;
@@ -567,11 +601,30 @@ h2 {
   background: #c62828;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
   animation: pulse-dot 1s infinite;
+}
+.recording-indicator {
+  flex-wrap: wrap;
+}
+.rec-preview {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  font-weight: 400;
+  font-size: 0.95rem;
+  color: #333;
+  font-style: italic;
+  line-height: 1.5;
 }
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.3; }
+}
+
+/* Add More button */
+.btn-add-more {
+  background: #6a1b9a;
 }
 
 /* Clear button */
@@ -1516,6 +1569,33 @@ h2 {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+/* Voice command indicator */
+.cmd-indicator {
+  background: #e8f5e9;
+  border-left: 6px solid #2e7d32;
+  padding: 10px 16px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2e7d32;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cmd-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #2e7d32;
+  animation: pulse-cmd 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse-cmd {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.85); }
 }
 
 /* High-contrast mode */

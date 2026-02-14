@@ -25,20 +25,32 @@
     </div>
 
     <!-- ===================== HELP PANEL ===================== -->
-    <div id="help-panel" class="help-panel" role="dialog" aria-label="Keyboard shortcuts" hidden>
-      <h2>Keyboard Shortcuts</h2>
+    <div id="help-panel" class="help-panel" role="dialog" aria-label="Voice commands and keyboard shortcuts" hidden>
+      <h2>Voice Commands</h2>
+      <p style="margin:0 0 12px;font-size:0.95rem;opacity:0.85;">Just speak any command after the question is read:</p>
       <ul>
-        <li><kbd>R</kbd> — Repeat question</li>
-        <li><kbd>A</kbd> — Answer by voice</li>
-        <li><kbd>C</kbd> — Clear answer</li>
-        <li><kbd>Enter</kbd> — Submit &amp; Next</li>
-        <li><kbd>N</kbd> / <kbd>→</kbd> — Skip</li>
-        <li><kbd>P</kbd> / <kbd>←</kbd> — Previous</li>
-        <li><kbd>V</kbd> — Review all answers</li>
+        <li><strong>"Answer"</strong> — Start recording your answer</li>
+        <li><strong>"Submit"</strong> — Save answer &amp; go to next</li>
+        <li><strong>"Next"</strong> or <strong>"Skip"</strong> — Skip this question</li>
+        <li><strong>"Previous"</strong> or <strong>"Back"</strong> — Go to previous question</li>
+        <li><strong>"Repeat"</strong> — Hear the question again</li>
+        <li><strong>"Add more"</strong> — Continue adding to your answer</li>
+        <li><strong>"Listen"</strong> — Hear your recorded answer</li>
+        <li><strong>"Clear"</strong> — Erase your answer</li>
+        <li><strong>"Review"</strong> — Hear all your answers</li>
+        <li><strong>"Help"</strong> — Hear this guide</li>
+        <li><strong>"Close Help"</strong> — Close this help panel</li>
+        <li><strong>"Faster"</strong> / <strong>"Slower"</strong> — Change speech speed</li>
+        <li><strong>"Mute"</strong> / <strong>"Unmute"</strong> — Toggle sound</li>
+        <li><strong>"Finish"</strong> — End the exam</li>
+      </ul>
+      <h3 style="margin-top:16px;">Keyboard Shortcuts (backup)</h3>
+      <ul>
+        <li><kbd>R</kbd> — Repeat &nbsp; <kbd>A</kbd> — Answer &nbsp; <kbd>D</kbd> — Add more</li>
+        <li><kbd>C</kbd> — Clear &nbsp; <kbd>Enter</kbd> — Submit &nbsp; <kbd>N</kbd> — Next</li>
+        <li><kbd>P</kbd> — Previous &nbsp; <kbd>V</kbd> — Review &nbsp; <kbd>L</kbd> — Listen</li>
+        <li><kbd>M</kbd> — Mute &nbsp; <kbd>H</kbd> — Help &nbsp; <kbd>Esc</kbd> — Cancel</li>
         <li><kbd>+</kbd> / <kbd>−</kbd> — Speed</li>
-        <li><kbd>H</kbd> — Help</li>
-        <li><kbd>M</kbd> — Mute / Unmute audio</li>
-        <li><kbd>Esc</kbd> — Stop / Cancel</li>
       </ul>
       <button class="btn btn-read" onclick="toggleHelp()">Close</button>
     </div>
@@ -75,13 +87,24 @@
 
         <!-- Answer display -->
         <div id="answer-box" class="answer-box" hidden aria-live="polite">
-          <strong>Your Answer:</strong>
+          <div class="answer-header">
+            <strong>Your Answer:</strong>
+            <button id="btn-listen-ans" class="btn-listen-ans" aria-label="Listen to your answer (L)" title="Listen to answer (L)">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+              Listen
+            </button>
+          </div>
           <p id="answer-text"></p>
         </div>
 
-        <!-- Recording indicator -->
+        <!-- Recording indicator (answer mode) -->
         <div id="recording-bar" class="recording-indicator" hidden aria-live="assertive">
           <span class="recording-dot"></span> Listening… Speak now.
+        </div>
+
+        <!-- Voice command indicator -->
+        <div id="cmd-bar" class="cmd-indicator" hidden aria-live="polite">
+          <span class="cmd-dot"></span> Waiting for voice command…
         </div>
 
         <!-- Navigation row: Previous / counter / Next -->
@@ -100,6 +123,7 @@
         <div id="btns-main" class="action-row" hidden>
           <button id="btn-repeat" class="btn btn-read" aria-label="Repeat (R)">Repeat</button>
           <button id="btn-answer" class="btn btn-answer" aria-label="Answer (A)">Answer</button>
+          <button id="btn-add-more" class="btn btn-add-more" aria-label="Add More (D)" hidden>+ Add More</button>
           <button id="btn-clear" class="btn btn-clear" aria-label="Clear (C)" hidden>Clear</button>
         </div>
 
@@ -162,6 +186,7 @@
     var $aBox     = document.getElementById('answer-box');
     var $aText    = document.getElementById('answer-text');
     var $recBar   = document.getElementById('recording-bar');
+    var $cmdBar   = document.getElementById('cmd-bar');
     var $diagWarn = document.getElementById('diagram-warning');
     var $help     = document.getElementById('help-panel');
     var $speedInd = document.getElementById('speed-indicator');
@@ -182,6 +207,7 @@
     var btnStart  = document.getElementById('btn-start');
     var btnRepeat = document.getElementById('btn-repeat');
     var btnAnswer = document.getElementById('btn-answer');
+    var btnAddMore = document.getElementById('btn-add-more');
     var btnClear  = document.getElementById('btn-clear');
     var btnPrev   = document.getElementById('btn-prev');
     var btnNext   = document.getElementById('btn-next');
@@ -226,54 +252,202 @@
     }
     function hush() { synth.cancel(); speaking = false; }
 
+    /* Female voice for reading answers back */
+    var answerVoice = null;
+    function pickAnswerVoice() {
+      var voices = synth.getVoices();
+      if (!voices.length) return;
+      var preferred = [
+        'samantha', 'karen', 'moira', 'tessa', 'fiona', 'veena',
+        'victoria', 'zira', 'susan', 'hazel', 'catherine',
+        'google uk english female', 'google us english female',
+        'microsoft zira', 'microsoft hazel'
+      ];
+      for (var p = 0; p < preferred.length; p++) {
+        for (var i = 0; i < voices.length; i++) {
+          if (voices[i].name.toLowerCase().indexOf(preferred[p]) !== -1) {
+            answerVoice = voices[i]; return;
+          }
+        }
+      }
+      for (var i = 0; i < voices.length; i++) {
+        if (voices[i].name.toLowerCase().indexOf('female') !== -1) {
+          answerVoice = voices[i]; return;
+        }
+      }
+    }
+    pickAnswerVoice();
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = pickAnswerVoice;
+    }
+
+    function sayAnswer(text, cb) {
+      if (muted) { if (cb) cb(); return; }
+      synth.cancel(); speaking = true;
+      var u = new SpeechSynthesisUtterance(text);
+      if (answerVoice) u.voice = answerVoice;
+      u.rate = rate;
+      u.pitch = 1.15;
+      u.volume = 0.9;
+      u.onend = function () { speaking = false; if (cb) cb(); };
+      u.onerror = function () { speaking = false; };
+      synth.speak(u);
+    }
+
+    function listenAnswer() {
+      var ans = answers[String(qIdx)];
+      if (!ans) { say('No answer recorded yet.'); return; }
+      sayAnswer('Your answer is: ' + ans);
+    }
+
     /* ==========================  STT  =========================== */
     var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = null;
+    var appendMode = false;
+
     function listen() {
+      appendMode = false;
+      startListening('Listening. Speak your answer now.');
+    }
+
+    function listenAppend() {
+      if (!answers[String(qIdx)]) { listen(); return; }
+      appendMode = true;
+      startListening('Add more to your answer. Speak now.');
+    }
+
+    var SILENCE_TIMEOUT = 15000;  /* 15 seconds of silence = done */
+    var silenceTimer = null;
+    var collectedText = '';
+
+    function startListening(prompt) {
       if (!SpeechRec) { say('Speech recognition not supported. Use Chrome.'); return; }
       if (phase !== 'questions' || listening) return;
       listening = true; $recBar.hidden = false;
+      collectedText = '';
       stat('Listening…');
-      say('Listening. Speak your answer now.', function () {
+      say(prompt, function () {
         rec = new SpeechRec();
-        rec.lang = 'en-US'; rec.continuous = false;
-        rec.interimResults = false; rec.maxAlternatives = 1;
+        rec.lang = 'en-US';
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.maxAlternatives = 1;
+
         rec.onresult = function (e) {
-          listening = false; $recBar.hidden = true;
-          onVoice(e.results[0][0].transcript);
+          /* Build full transcript from all final + interim results */
+          var final = '', interim = '';
+          for (var i = 0; i < e.results.length; i++) {
+            if (e.results[i].isFinal) {
+              final += e.results[i][0].transcript + ' ';
+            } else {
+              interim += e.results[i][0].transcript;
+            }
+          }
+          collectedText = final.trim();
+          var display = (collectedText + ' ' + interim).trim();
+          $recBar.innerHTML = '<span class="recording-dot"></span> Listening… <span class="rec-preview">' + display + '</span>';
+          stat('Listening… (speak, pause to finish)');
+
+          /* Reset silence timer — student is still speaking */
+          clearTimeout(silenceTimer);
+          silenceTimer = setTimeout(function () {
+            finishListening();
+          }, SILENCE_TIMEOUT);
         };
+
         rec.onerror = function (e) {
+          clearTimeout(silenceTimer);
           listening = false; $recBar.hidden = true;
-          if (e.error === 'no-speech') say('No speech detected. Press A to try again.');
-          else if (e.error === 'not-allowed') say('Microphone blocked.');
-          else say('Could not recognise. Press A again.');
-          stat('Press A to try again.');
+          $recBar.innerHTML = '<span class="recording-dot"></span> Listening… Speak now.';
+          if (e.error === 'no-speech') say('No speech detected. Say answer to try again.');
+          else if (e.error === 'not-allowed') say('Microphone blocked. Please allow microphone access.');
+          else if (e.error !== 'aborted') say('Could not recognise. Say answer to try again.');
+          stat('Say answer to try again.');
         };
-        rec.onend = function () { listening = false; $recBar.hidden = true; };
+
+        rec.onend = function () {
+          /* If we still have text and listening was active, finalize */
+          if (listening && collectedText) {
+            clearTimeout(silenceTimer);
+            finishListening();
+          } else if (listening) {
+            listening = false; $recBar.hidden = true;
+            $recBar.innerHTML = '<span class="recording-dot"></span> Listening… Speak now.';
+          }
+        };
+
+        /* Start the silence timer for initial silence too */
+        silenceTimer = setTimeout(function () {
+          if (listening && !collectedText) {
+            stopRec();
+            say('No speech detected. Say answer to try again.');
+            stat('Say answer to try again.');
+          }
+        }, 8000); /* 8s initial wait */
+
         rec.start();
       });
     }
-    function stopRec() { if (rec) rec.abort(); listening = false; $recBar.hidden = true; }
+
+    function finishListening() {
+      clearTimeout(silenceTimer);
+      if (rec) { try { rec.stop(); } catch(e) {} }
+      listening = false; $recBar.hidden = true;
+      $recBar.innerHTML = '<span class="recording-dot"></span> Listening… Speak now.';
+
+      if (!collectedText) return;
+
+      if (appendMode && answers[String(qIdx)]) {
+        onVoiceAppend(collectedText);
+      } else {
+        onVoice(collectedText);
+      }
+      collectedText = '';
+    }
+
+    function stopRec() {
+      clearTimeout(silenceTimer);
+      if (rec) { try { rec.abort(); } catch(e) {} }
+      listening = false; $recBar.hidden = true;
+      $recBar.innerHTML = '<span class="recording-dot"></span> Listening… Speak now.';
+      collectedText = '';
+    }
 
     /* ==========================  ANSWER  ======================== */
     function onVoice(text) {
       answers[String(qIdx)] = text;
       $aText.textContent = text; $aBox.hidden = false;
-      btnClear.hidden = false;
+      btnClear.hidden = false; btnAddMore.hidden = false;
       updateGrid();
       stat('Answer recorded.');
-      say('Your answer is: ' + text + '. Press Enter to submit, A to re-record, or C to clear.');
+      sayAnswer('Your answer: ' + text, function () {
+        say('Say submit, add more, answer again, or clear.');
+      });
+    }
+
+    function onVoiceAppend(text) {
+      var existing = answers[String(qIdx)];
+      var combined = existing + ' ' + text;
+      answers[String(qIdx)] = combined;
+      $aText.textContent = combined; $aBox.hidden = false;
+      btnClear.hidden = false; btnAddMore.hidden = false;
+      updateGrid();
+      stat('Added to answer.');
+      sayAnswer('Added. Full answer: ' + combined, function () {
+        say('Say add more, submit, or clear.');
+      });
     }
     function clearAns() {
       hush(); delete answers[String(qIdx)];
-      $aText.textContent = ''; $aBox.hidden = true; btnClear.hidden = true;
+      $aText.textContent = ''; $aBox.hidden = true;
+      btnClear.hidden = true; btnAddMore.hidden = true;
       updateGrid(); stat('Cleared.');
-      say('Answer cleared. Press A to record.');
+      say('Answer cleared. Say answer to record again.');
     }
     function submitNext() {
       hush();
       var ans = answers[String(qIdx)];
-      if (!ans) { say('No answer yet. Press A to record, or N to skip.'); return; }
+      if (!ans) { say('No answer yet. Say answer to record, or say next to skip.'); return; }
       saveAnswer(qIdx, ans);
       if (qIdx < TOTAL - 1) { say('Submitted.', function () { qIdx++; showQ(); }); }
       else { say('Submitted. Last question done.', function () { showDone(); }); }
@@ -300,7 +474,7 @@
       $badge.hidden = true; $navRow.hidden = true; $gridPnl.hidden = true;
       $aBox.hidden = true; $diagWarn.hidden = true;
       stat(INSTRUCTIONS.length + ' instructions, ' + TOTAL + ' questions.');
-      say('Welcome to your exam. ' + TOTAL + ' questions. Press R to hear instructions, or Enter to start.');
+      say('Welcome to your exam. ' + TOTAL + ' questions. Say repeat to hear instructions, or say start to begin.');
     }
 
     function showQ() {
@@ -322,9 +496,9 @@
       // Answer
       if (answers[String(qIdx)]) {
         $aText.textContent = answers[String(qIdx)];
-        $aBox.hidden = false; btnClear.hidden = false;
+        $aBox.hidden = false; btnClear.hidden = false; btnAddMore.hidden = false;
       } else {
-        $aBox.hidden = true; btnClear.hidden = true;
+        $aBox.hidden = true; btnClear.hidden = true; btnAddMore.hidden = true;
       }
       $recBar.hidden = true;
 
@@ -345,6 +519,7 @@
       stat('Question ' + num + ' of ' + TOTAL);
       var speech = 'Question ' + num + ' of ' + TOTAL + '. ' + q;
       if (hasDiag) speech += ' Warning: this question has a diagram. Ask your invigilator.';
+      speech += ' Say answer to record, or say help for commands.';
       say(speech);
     }
 
@@ -356,7 +531,7 @@
       hideAll(); $bDone.hidden = false;
       $navRow.hidden = true; $aBox.hidden = true; $diagWarn.hidden = true;
       updateGrid();
-      say('Exam complete. ' + n + ' of ' + TOTAL + ' answered. Press V to review or Enter to finish.');
+      say('Exam complete. ' + n + ' of ' + TOTAL + ' answered. Say review to hear your answers, or say finish to end.');
     }
 
     function hideAll() {
@@ -389,9 +564,135 @@
     /* ==========================  HELP  ========================== */
     function toggleHelp() {
       var open = $help.hidden; $help.hidden = !open;
-      if (open) say('Help. R repeat. A answer. C clear. Enter submit. N skip. P previous. V review. M mute or unmute. Plus and minus for speed. H close.');
+      if (open) say('Help. You can control this exam by speaking commands. Say: answer to record. Submit to save and go next. Next to skip. Previous to go back. Repeat to hear the question again. Add more to extend your answer. Listen to hear your answer. Clear to erase your answer. Review to hear all answers. Help for this guide. Close to close help. Mute or unmute to toggle sound. Faster or slower to change speed. Finish to end the exam. You can also use keyboard shortcuts as a backup.');
       else say('Help closed.');
     }
+
+    /* ==========================  VOICE COMMANDS  ================= */
+    var cmdRec = null;
+    var cmdActive = false;
+
+    /* Map spoken words to actions */
+    function handleVoiceCommand(text) {
+      var t = text.toLowerCase().trim();
+
+      /* Instructions phase */
+      if (phase === 'instructions') {
+        if (/\b(start|begin|go|next|enter)\b/.test(t)) { qIdx = 0; showQ(); return; }
+        if (/\b(read|repeat|instructions?)\b/.test(t)) { repeat(); return; }
+      }
+
+      /* Completed phase */
+      if (phase === 'completed') {
+        if (/\b(review|answers?)\b/.test(t)) { review(); return; }
+        if (/\b(finish|done|exit|end|submit)\b/.test(t)) { finish(); return; }
+      }
+
+      /* Close help — works in any phase */
+      if (/\b(close\s*help|close|hide\s*help)\b/.test(t) && !$help.hidden) {
+        toggleHelp(); return;
+      }
+
+      /* Questions phase */
+      if (phase === 'questions') {
+        if (/\b(answer|record|speak)\b/.test(t)) { listen(); return; }
+        if (/\b(add\s*more|continue|append)\b/.test(t)) { listenAppend(); return; }
+        if (/\b(repeat|read\s*again|again)\b/.test(t)) { repeat(); return; }
+        if (/\b(submit|done|save)\b/.test(t)) { submitNext(); return; }
+        if (/\b(next|skip|forward)\b/.test(t)) { skip(); return; }
+        if (/\b(previous|back|go\s*back)\b/.test(t)) { prev(); return; }
+        if (/\b(clear|erase|delete|remove)\b/.test(t)) { clearAns(); return; }
+        if (/\b(listen|hear|play)\b/.test(t)) { listenAnswer(); return; }
+        if (/\b(review|all\s*answers?)\b/.test(t)) { review(); return; }
+        if (/\b(help|commands?|options?|what\s*can)\b/.test(t)) { toggleHelp(); return; }
+        if (/\b(mute|unmute|quiet|sound)\b/.test(t)) { toggleMute(); return; }
+        if (/\b(faster|speed\s*up)\b/.test(t)) { faster(); return; }
+        if (/\b(slower|slow\s*down)\b/.test(t)) { slower(); return; }
+        if (/\b(finish|end\s*exam)\b/.test(t)) { showDone(); return; }
+      }
+
+      /* Command not recognized */
+      say('Sorry, I did not understand. Say: answer, repeat, submit, next, previous, add more, clear, listen, or help.');
+    }
+
+    function startCommandListening() {
+      if (!SpeechRec || muted || listening || cmdActive) return;
+      /* Small delay so TTS finishes cleanly before mic opens */
+      setTimeout(function () {
+        if (listening || cmdActive || speaking) {
+          /* TTS still going — wait and retry */
+          var retryCheck = setInterval(function () {
+            if (!speaking && !listening && !cmdActive) {
+              clearInterval(retryCheck);
+              openCommandMic();
+            }
+          }, 300);
+        } else {
+          openCommandMic();
+        }
+      }, 500);
+    }
+
+    function openCommandMic() {
+      if (listening || cmdActive || muted) return;
+      cmdActive = true;
+      $cmdBar.hidden = false;
+      cmdRec = new SpeechRec();
+      cmdRec.lang = 'en-US';
+      cmdRec.continuous = false;
+      cmdRec.interimResults = false;
+      cmdRec.maxAlternatives = 1;
+
+      cmdRec.onresult = function (e) {
+        cmdActive = false;
+        $cmdBar.hidden = true;
+        var command = e.results[0][0].transcript;
+        stat('Voice command: "' + command + '"');
+        handleVoiceCommand(command);
+      };
+      cmdRec.onerror = function (e) {
+        cmdActive = false;
+        $cmdBar.hidden = true;
+        if (e.error === 'no-speech') {
+          /* Silently restart — student just hasn't spoken yet */
+          startCommandListening();
+        }
+        /* Other errors: do nothing, keyboard still works */
+      };
+      cmdRec.onend = function () {
+        if (cmdActive) {
+          cmdActive = false;
+          $cmdBar.hidden = true;
+          /* Auto-restart if no command was captured */
+          if (!listening && !speaking) startCommandListening();
+        }
+      };
+
+      try { cmdRec.start(); } catch(e) { cmdActive = false; $cmdBar.hidden = true; }
+    }
+
+    function stopCommandListening() {
+      cmdActive = false;
+      $cmdBar.hidden = true;
+      if (cmdRec) { try { cmdRec.abort(); } catch(e) {} }
+    }
+
+    /* Stop command mic when answer recording starts */
+    var _origStartListening = startListening;
+    var _patchedStartListening = function (prompt) {
+      stopCommandListening();
+      _origStartListening(prompt);
+    };
+    // Re-wire listen/listenAppend to use patched version
+    listen = function () {
+      appendMode = false;
+      _patchedStartListening('Speak your answer now.');
+    };
+    listenAppend = function () {
+      if (!answers[String(qIdx)]) { listen(); return; }
+      appendMode = true;
+      _patchedStartListening('Add more to your answer. Speak now.');
+    };
 
     /* ==========================  UTILITY  ======================= */
     function stat(t) { $status.textContent = t; }
@@ -399,6 +700,7 @@
     /* ==========================  KEYS  ========================== */
     document.addEventListener('keydown', function (e) {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      stopCommandListening(); /* Stop command mic when keyboard is used */
       var k = e.key.toLowerCase();
       if (k === 'h')     { e.preventDefault(); toggleHelp(); return; }
       if (k === 'escape') {
@@ -413,8 +715,10 @@
       if (k === 's')              { e.preventDefault(); showSpd(); return; }
       if (k === 'v')              { e.preventDefault(); review(); return; }
       if (k === 'm')              { e.preventDefault(); toggleMute(); return; }
+      if (k === 'l')              { e.preventDefault(); listenAnswer(); return; }
       if (k === 'r')              { e.preventDefault(); repeat(); return; }
       if (k === 'a')              { e.preventDefault(); listen(); return; }
+      if (k === 'd')              { e.preventDefault(); if (phase === 'questions') listenAppend(); return; }
       if (k === 'c')              { e.preventDefault(); if (phase === 'questions') clearAns(); return; }
       if (k === 'enter') {
         e.preventDefault();
@@ -436,11 +740,11 @@
     function toggleMute() {
       muted = !muted;
       if (muted) {
-        hush(); stopRec();
+        hush(); stopRec(); stopCommandListening();
         $iconOn.hidden = true; $iconOff.hidden = false;
         $btnMute.setAttribute('aria-label', 'Unmute audio');
         $btnMute.classList.add('is-muted');
-        stat('Audio muted.');
+        stat('Audio muted. Voice commands paused.');
       } else {
         $iconOn.hidden = false; $iconOff.hidden = true;
         $btnMute.setAttribute('aria-label', 'Mute audio');
@@ -460,12 +764,40 @@
 
     $btnMute.addEventListener('click', toggleMute);
 
+    /* ========  VOICE COMMAND: Hook say() and sayAnswer()  ======= */
+    /* Wrap say() so after every TTS, we auto-start command listening */
+    var _sayBeforeCmd = say;
+    say = function (text, cb) {
+      stopCommandListening();
+      /* Use a wrapper callback that starts command listening after speech */
+      _sayBeforeCmd(text, function () {
+        if (cb) cb();
+        if (!listening && !speaking && !muted) {
+          startCommandListening();
+        }
+      });
+    };
+
+    /* Wrap sayAnswer() similarly */
+    var _sayAnswerBeforeCmd = sayAnswer;
+    sayAnswer = function (text, cb) {
+      stopCommandListening();
+      _sayAnswerBeforeCmd(text, function () {
+        if (cb) cb();
+        if (!listening && !speaking && !muted) {
+          startCommandListening();
+        }
+      });
+    };
+
     /* ==========================  CLICKS  ======================== */
     btnReadI.addEventListener('click',  function () { repeat(); });
     btnStart.addEventListener('click',  function () { qIdx = 0; showQ(); });
     btnRepeat.addEventListener('click', function () { repeat(); });
     btnAnswer.addEventListener('click', function () { listen(); });
+    btnAddMore.addEventListener('click', function () { listenAppend(); });
     btnClear.addEventListener('click',  function () { clearAns(); });
+    document.getElementById('btn-listen-ans').addEventListener('click', function () { listenAnswer(); });
     btnPrev.addEventListener('click',   function () { prev(); });
     btnNext.addEventListener('click',   function () { skip(); });
     btnSubN.addEventListener('click',   function () { submitNext(); });
