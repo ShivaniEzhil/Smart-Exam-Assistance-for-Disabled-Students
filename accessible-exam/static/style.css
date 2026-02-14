@@ -19,7 +19,7 @@ body {
   min-height: 100vh;
   font-family: system-ui, -apple-system, sans-serif;
   color: #1a1a1a;
-  background: #e8f4f8 url('image.png') no-repeat center center;
+  background: #e8f4f8 url('Dashboard background.png') no-repeat center center;
   background-size: cover;
   background-attachment: fixed;
   padding: 1.5rem 1rem;
@@ -35,7 +35,7 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.55);
   pointer-events: none;
   z-index: 0;
 }
@@ -152,14 +152,19 @@ h2 {
 }
 
 /* Colour variants */
-.btn-blind  { background: #6a1b9a; }
-.btn-deaf   { background: #c62828; }
-.btn-upload { background: #6a1b9a; color: #fff; padding: 10px 22px; border-radius: 10px; font-weight: 600; }
-.btn-read   { background: #1976d2; }
-.btn-answer { background: #2e7d32; }
-.btn-nav    { background: #455a64; }
-.btn-help   { background: #ff9800; padding: 10px 22px; border-radius: 10px; font-weight: 600; }
-.btn-submit { background: #2e7d32; }
+.btn-blind   { background: #6a1b9a; }
+.btn-deaf    { background: #c62828; }
+.btn-teacher { background: #1565c0; }
+.btn-student { background: #2e7d32; }
+.btn-upload  { background: #6a1b9a; color: #fff; padding: 10px 22px; border-radius: 10px; font-weight: 600; }
+.btn-read    { background: #1976d2; }
+.btn-answer  { background: #2e7d32; }
+.btn-nav     { background: #455a64; }
+.btn-help    { background: #ff9800; padding: 10px 22px; border-radius: 10px; font-weight: 600; }
+.btn-submit  { background: #2e7d32; }
+.btn-delete  { background: #c62828; }
+.btn-full    { width: 100%; }
+.btn-sm      { padding: 0.5rem 1rem; font-size: 0.9rem; min-height: 36px; }
 
 /* Disabled state */
 .btn:disabled {
@@ -751,6 +756,419 @@ h2 {
 }
 
 /* =======================================================
+   Login form
+   ======================================================= */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.form-input {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  background: #fff;
+  color: #1a1a1a;
+  transition: border-color 0.2s;
+}
+.form-input:focus {
+  border-color: #6a1b9a;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(106, 27, 154, 0.15);
+}
+.form-input:focus-visible {
+  outline: 3px solid #ff9800;
+  outline-offset: 2px;
+}
+
+/* =======================================================
+   Two-card login page
+   ======================================================= */
+.login-page {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+.login-page-title {
+  font-size: 3.4rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: #1a1a1a;
+  border: none;
+  letter-spacing: 2.5px;
+}
+.login-page-subtitle {
+  color: #555;
+  font-size: 1.05rem;
+  margin-bottom: 28px;
+}
+
+.login-cards {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.login-card {
+  flex: 1;
+  max-width: 440px;
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.login-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.15);
+}
+
+/* Card headers with color */
+.login-card-header {
+  padding: 32px 28px 24px;
+  text-align: center;
+  color: #fff;
+}
+.login-card-header h2 {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #fff;
+}
+.login-card-header-student {
+  background: linear-gradient(135deg, #42a5f5, #1565c0);
+}
+.login-card-header-teacher {
+  background: linear-gradient(135deg, #ffb74d, #e65100);
+}
+
+.login-card-icon {
+  margin-bottom: 10px;
+}
+.login-avatar {
+  width: 56px;
+  height: 56px;
+}
+
+/* Card form */
+.login-card-form {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  text-align: left;
+}
+
+/* Login buttons */
+.btn-login {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  color: #fff;
+  transition: opacity 0.2s, transform 0.1s;
+  margin-top: 6px;
+}
+.btn-login:hover { opacity: 0.9; }
+.btn-login:active { transform: scale(0.98); }
+.btn-login:focus-visible {
+  outline: 3px solid #ff9800;
+  outline-offset: 3px;
+}
+.btn-login-student {
+  background: linear-gradient(135deg, #42a5f5, #1565c0);
+}
+.btn-login-teacher {
+  background: linear-gradient(135deg, #ffb74d, #e65100);
+}
+
+/* =======================================================
+   Dashboard layout
+   ======================================================= */
+.dash-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.dash-topbar h1 {
+  margin-bottom: 4px;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.dash-topbar .subtitle {
+  margin: 0;
+}
+.dash-topbar-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.dash-section {
+  margin-top: 8px;
+}
+.dash-section h2 {
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 8px;
+}
+
+/* =======================================================
+   Paper cards (grid)
+   ======================================================= */
+.paper-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.paper-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 0.2s, transform 0.1s;
+  border-top: 4px solid #1565c0;
+}
+.paper-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.paper-card-student {
+  border-top-color: #2e7d32;
+}
+
+.paper-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.paper-subject {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.paper-badge {
+  background: #e8eaf6;
+  color: #1565c0;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.paper-card-student .paper-badge {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.paper-card-body {
+  flex: 1;
+}
+.paper-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+}
+
+.paper-card-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* =======================================================
+   Inline upload form (teacher dashboard)
+   ======================================================= */
+.upload-inline {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 14px;
+  padding: 24px;
+}
+.upload-inline-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+.upload-inline-row:last-child {
+  margin-bottom: 0;
+}
+.upload-inline-field {
+  flex: 1;
+  min-width: 0;
+}
+.upload-inline-btn-wrap {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+}
+.upload-inline-btn-wrap .btn {
+  white-space: nowrap;
+  min-width: 160px;
+}
+
+@media (max-width: 768px) {
+  .upload-inline-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .upload-inline-btn-wrap .btn {
+    width: 100%;
+  }
+}
+
+/* =======================================================
+   Mode tags (voice / visual / both)
+   ======================================================= */
+.mode-tag {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.mode-tag-voice {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+.mode-tag-visual {
+  background: #fff3e0;
+  color: #e65100;
+}
+.mode-tag-both {
+  background: #f3e5f5;
+  color: #6a1b9a;
+}
+
+/* Select dropdown styling */
+.form-select {
+  appearance: auto;
+  cursor: pointer;
+}
+
+/* Radio group */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.radio-option:hover {
+  border-color: #1565c0;
+  background: #f5f9ff;
+}
+.radio-option input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #1565c0;
+  cursor: pointer;
+}
+.radio-option input[type="radio"]:checked + .radio-label {
+  font-weight: 600;
+  color: #1565c0;
+}
+.radio-option:has(input:checked) {
+  border-color: #1565c0;
+  background: #e3f2fd;
+}
+.radio-label {
+  font-size: 0.95rem;
+  color: #333;
+}
+.radio-label small {
+  color: #888;
+  font-weight: 400;
+}
+
+/* =======================================================
+   Empty state
+   ======================================================= */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #888;
+  font-size: 1.05rem;
+}
+.empty-state .btn {
+  display: inline-block;
+  margin-top: 16px;
+}
+
+/* =======================================================
+   Success / flash messages
+   ======================================================= */
+.success-box {
+  background: #e8f5e9;
+  border-left: 6px solid #2e7d32;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  color: #1b5e20;
+}
+
+/* =======================================================
    Responsive — Desktop large (1300px+)
    ======================================================= */
 @media (min-width: 1300px) {
@@ -839,6 +1257,28 @@ h2 {
   .drop-zone-area {
     height: 120px;
   }
+
+  .dash-topbar {
+    flex-direction: column;
+  }
+  .dash-topbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .paper-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .login-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+  .login-card {
+    max-width: 100%;
+    width: 100%;
+  }
+  .login-page-title { font-size: 1.5rem; }
 }
 
 /* =======================================================

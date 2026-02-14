@@ -10,27 +10,104 @@
 
   <a href="#main-content" class="skip-link">Skip to main content</a>
 
-  <main id="main-content" class="container" role="main">
-    <h1>Accessible Exam Tool</h1>
-    <p class="subtitle">
-      Select your accessibility mode to start the exam.
-    </p>
+  <main id="main-content" class="login-page" role="main">
 
-    <nav class="mode-buttons" aria-label="Accessibility mode selection">
-      <a href="{{ url_for('blind') }}"
-        class="btn btn-blind"
-        role="button"
-        aria-label="Start exam in Blind Mode — questions read aloud, answer by voice">
-        Blind Mode
-      </a>
+    <h1 class="login-page-title">Accessible Exam Tool</h1>
+    <p class="login-page-subtitle">Select your role and log in to continue.</p>
 
-      <a href="{{ url_for('deaf') }}"
-        class="btn btn-deaf"
-        role="button"
-        aria-label="Start exam in Deaf and Mute Mode — sign language support">
-        Deaf &amp; Mute Mode
-      </a>
-    </nav>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="{% if category == 'error' %}error-box{% else %}success-box{% endif %}" role="alert" style="max-width:700px;margin:0 auto 20px;">
+      {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="login-cards">
+
+      <!-- ========== TEACHER LOGIN ========== -->
+      <div class="login-card login-card-teacher">
+        <div class="login-card-header login-card-header-teacher">
+          <div class="login-card-icon">
+            <svg viewBox="0 0 64 64" fill="none" class="login-avatar">
+              <circle cx="32" cy="20" r="12" fill="#fff"/>
+              <path d="M12 56c0-11 9-20 20-20s20 9 20 20" fill="#fff" opacity="0.7"/>
+              <circle cx="32" cy="20" r="12" stroke="#e65100" stroke-width="2" fill="none"/>
+              <path d="M12 56c0-11 9-20 20-20s20 9 20 20" stroke="#e65100" stroke-width="2" fill="none"/>
+              <rect x="24" y="6" width="16" height="4" rx="2" fill="#e65100" opacity="0.5"/>
+            </svg>
+          </div>
+          <h2>Teacher Login</h2>
+        </div>
+
+        <form method="POST" action="{{ url_for('teacher_login') }}" class="login-card-form" autocomplete="off">
+          <div class="form-group">
+            <label for="tch-user" class="form-label">Username</label>
+            <input type="text" id="tch-user" name="username" class="form-input"
+              required placeholder="Enter your username"
+              aria-label="Enter your teacher username">
+          </div>
+
+          <div class="form-group">
+            <label for="tch-pass" class="form-label">Password</label>
+            <input type="password" id="tch-pass" name="password" class="form-input"
+              required placeholder="Enter your password"
+              aria-label="Enter your password">
+          </div>
+
+          <button type="submit" class="btn btn-login btn-login-teacher">Login</button>
+        </form>
+      </div>
+
+      <!-- ========== STUDENT LOGIN ========== -->
+      <div class="login-card login-card-student">
+        <div class="login-card-header login-card-header-student">
+          <div class="login-card-icon">
+            <svg viewBox="0 0 64 64" fill="none" class="login-avatar">
+              <circle cx="32" cy="20" r="12" fill="#fff"/>
+              <path d="M12 56c0-11 9-20 20-20s20 9 20 20" fill="#fff" opacity="0.7"/>
+              <circle cx="32" cy="20" r="12" stroke="#1565c0" stroke-width="2" fill="none"/>
+              <path d="M12 56c0-11 9-20 20-20s20 9 20 20" stroke="#1565c0" stroke-width="2" fill="none"/>
+            </svg>
+          </div>
+          <h2>Student Login</h2>
+        </div>
+
+        <form method="POST" action="{{ url_for('student_login') }}" class="login-card-form" autocomplete="off">
+          <div class="form-group">
+            <label for="stu-roll" class="form-label">Roll Number</label>
+            <input type="text" id="stu-roll" name="roll_number" class="form-input"
+              required placeholder="e.g. CSE001"
+              aria-label="Enter your roll number">
+          </div>
+
+          <div class="form-group">
+            <label for="stu-dob" class="form-label">Date of Birth</label>
+            <input type="date" id="stu-dob" name="dob" class="form-input"
+              required aria-label="Enter your date of birth">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Exam Type</label>
+            <div class="radio-group">
+              <label class="radio-option">
+                <input type="radio" name="exam_type" value="voice" required checked>
+                <span class="radio-label">Voice Exam <small>(for blind students)</small></span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="exam_type" value="visual">
+                <span class="radio-label">Visual Exam <small>(for deaf &amp; mute students)</small></span>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-login btn-login-student">Login</button>
+        </form>
+      </div>
+
+    </div>
   </main>
 
 </body>

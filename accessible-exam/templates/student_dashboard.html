@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard — Accessible Exam Tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <main id="main-content" class="container container-wide" role="main">
+
+    <!-- Top bar -->
+    <div class="dash-topbar">
+      <div>
+        <h1>My Exams</h1>
+        <p class="subtitle">Welcome, <strong>{{ session.name }}</strong> ({{ session.roll }})</p>
+      </div>
+      <div class="dash-topbar-actions">
+        <a href="{{ url_for('logout') }}" class="btn btn-nav">Logout</a>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="{% if category == 'error' %}error-box{% else %}success-box{% endif %}" role="alert">
+      {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Available papers -->
+    <section class="dash-section" role="region" aria-label="Available exams">
+      <h2>Available Question Papers</h2>
+
+      {% if papers | length == 0 %}
+      <div class="empty-state">
+        <p>No exams are available right now. Please check back later or contact your teacher.</p>
+      </div>
+      {% else %}
+
+      <div class="paper-grid">
+        {% for paper in papers %}
+        <div class="paper-card paper-card-student">
+          <div class="paper-card-header">
+            <h3 class="paper-subject">{{ paper.subject }}</h3>
+            <span class="paper-badge">{{ paper.num_questions }} Q</span>
+          </div>
+          <div class="paper-card-body">
+            <p class="paper-meta">
+              <span>By: {{ paper.teacher_name }}</span>
+              <span>{{ paper.uploaded_at }}</span>
+            </p>
+            <span class="mode-tag mode-tag-{{ paper.exam_mode }}">
+              {% if paper.exam_mode == 'voice' %}Voice Exam
+              {% elif paper.exam_mode == 'visual' %}Visual Exam
+              {% else %}All Students{% endif %}
+            </span>
+          </div>
+          <div class="paper-card-footer">
+            <a href="{{ url_for('start_exam', paper_id=paper.paper_id) }}"
+              class="btn btn-student btn-full"
+              aria-label="Start {{ paper.subject }} exam with {{ paper.num_questions }} questions">
+              Start Exam
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% endif %}
+    </section>
+
+  </main>
+
+  <script>
+    /* Auto-speak only for voice-mode (blind) students */
+    {% if student_mode == 'voice' %}
+    var synth = window.speechSynthesis;
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        synth.cancel();
+        var count = document.querySelectorAll('.paper-card').length;
+        var msg = count > 0
+          ? 'Welcome {{ session.name }}. You have ' + count + ' exam' + (count > 1 ? 's' : '') + ' available. Use Tab to navigate to a paper and press Enter to start.'
+          : 'Welcome {{ session.name }}. No exams are available right now.';
+        var u = new SpeechSynthesisUtterance(msg);
+        u.rate = 1.0;
+        synth.speak(u);
+      }, 600);
+    });
+    {% endif %}
+  </script>
+
+</body>
+</html>

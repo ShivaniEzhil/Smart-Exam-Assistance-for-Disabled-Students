@@ -12,7 +12,7 @@
 
   <main id="main-content" class="container exam-page" role="main">
 
-    <h1>Exam Completed</h1>
+    <h1>{{ subject }} — Completed</h1>
 
     <!-- Summary -->
     <div class="completion-summary" role="status">
@@ -50,13 +50,13 @@
         aria-label="Read all answers aloud (shortcut R)">
         Read All Answers
       </button>
-      <a href="{{ url_for('reset') }}" class="btn btn-blind"
-        aria-label="Start a new exam">
-        New Exam
+      <a href="{{ url_for('student_dashboard') }}" class="btn btn-student"
+        aria-label="Go back to my exams">
+        Back to My Exams
       </a>
-      <a href="{{ url_for('index') }}" class="btn btn-upload"
-        aria-label="Go back to home page">
-        Back to Home
+      <a href="{{ url_for('logout') }}" class="btn btn-nav"
+        aria-label="Logout">
+        Logout
       </a>
     </div>
 

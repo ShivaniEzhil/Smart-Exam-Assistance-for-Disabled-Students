@@ -1,0 +1,32 @@
+{
+  "teachers": {
+    "teacher1": {
+      "password": "teach123",
+      "name": "Mrs. Priya"
+    },
+    "teacher2": {
+      "password": "teach456",
+      "name": "Mr. Kumar"
+    }
+  },
+  "blind_students": {
+    "CSE001": {
+      "dob": "2004-05-15",
+      "name": "Ananya"
+    },
+    "CSE002": {
+      "dob": "2004-08-22",
+      "name": "Rahul"
+    }
+  },
+  "deaf_students": {
+    "CSE003": {
+      "dob": "2004-01-10",
+      "name": "Divya"
+    },
+    "CSE004": {
+      "dob": "2003-12-25",
+      "name": "Karthik"
+    }
+  }
+}

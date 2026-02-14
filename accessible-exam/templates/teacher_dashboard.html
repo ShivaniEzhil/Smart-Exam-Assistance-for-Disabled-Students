@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard — Accessible Exam Tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <main id="main-content" class="container container-wide" role="main">
+
+    <!-- Top bar -->
+    <div class="dash-topbar">
+      <div>
+        <h1>Teacher Dashboard</h1>
+        <p class="subtitle">Welcome, <strong>{{ session.name }}</strong></p>
+      </div>
+      <div class="dash-topbar-actions">
+        <a href="{{ url_for('logout') }}" class="btn btn-nav">Logout</a>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="{% if category == 'error' %}error-box{% else %}success-box{% endif %}" role="alert">
+      {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- ========== UPLOAD SECTION ========== -->
+    <section class="dash-section" role="region" aria-label="Upload question paper">
+      <h2>Upload Question Paper</h2>
+
+      <form method="POST" action="{{ url_for('teacher_upload') }}" enctype="multipart/form-data" class="upload-inline" id="uploadForm">
+
+        <div class="upload-inline-row">
+          <div class="form-group upload-inline-field">
+            <label for="subject" class="form-label">Subject / Exam Name</label>
+            <input type="text" id="subject" name="subject" class="form-input"
+              required placeholder="e.g. Mathematics, Science, English">
+          </div>
+
+          <div class="form-group upload-inline-field">
+            <label for="exam-mode" class="form-label">Assign To</label>
+            <select id="exam-mode" name="exam_mode" class="form-input form-select" required>
+              <option value="" disabled selected>— Select —</option>
+              <option value="voice">Blind Students (Voice Exam)</option>
+              <option value="visual">Deaf &amp; Mute Students (Visual Exam)</option>
+              <option value="both">Both Groups</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="upload-inline-row">
+          <div class="form-group upload-inline-field">
+            <label for="fileInput" class="form-label">Question Paper File</label>
+            <input type="file" name="question_paper" id="fileInput"
+              accept=".pdf,image/*" required class="file-input-accessible"
+              aria-describedby="file-help">
+            <p id="file-help" class="file-help">
+              PDF, PNG, JPG, JPEG, WebP, BMP, TIFF, GIF (max 10 MB)
+            </p>
+          </div>
+
+          <div class="form-group upload-inline-field upload-inline-btn-wrap">
+            <button type="submit" class="btn btn-teacher btn-full" id="startBtn" disabled>
+              Upload Paper
+            </button>
+          </div>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- ========== PAPERS LIST ========== -->
+    <section class="dash-section" role="region" aria-label="Uploaded question papers">
+      <h2>Your Uploaded Papers</h2>
+
+      {% if papers | length == 0 %}
+      <div class="empty-state">
+        <p>No papers uploaded yet. Use the form above to upload your first paper.</p>
+      </div>
+      {% else %}
+
+      <div class="paper-grid">
+        {% for paper in papers %}
+        <div class="paper-card">
+          <div class="paper-card-header">
+            <h3 class="paper-subject">{{ paper.subject }}</h3>
+            <span class="paper-badge">{{ paper.num_questions }} Q</span>
+          </div>
+          <div class="paper-card-body">
+            <p class="paper-meta">
+              <span>File: {{ paper.filename }}</span>
+              <span>Uploaded: {{ paper.uploaded_at }}</span>
+            </p>
+            <span class="mode-tag mode-tag-{{ paper.exam_mode }}">
+              {% if paper.exam_mode == 'voice' %}Blind Students
+              {% elif paper.exam_mode == 'visual' %}Deaf &amp; Mute Students
+              {% else %}All Students{% endif %}
+            </span>
+          </div>
+          <div class="paper-card-footer">
+            <form method="POST" action="{{ url_for('delete_paper', paper_id=paper.paper_id) }}"
+              onsubmit="return confirm('Delete this paper? Students will no longer see it.')">
+              <button type="submit" class="btn btn-delete btn-sm">Delete</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% endif %}
+    </section>
+
+  </main>
+
+  <script>
+    var fileInput = document.getElementById('fileInput');
+    var startBtn  = document.getElementById('startBtn');
+
+    if (fileInput) {
+      fileInput.addEventListener('change', function () {
+        startBtn.disabled = fileInput.files.length === 0;
+      });
+    }
+  </script>
+
+</body>
+</html>
