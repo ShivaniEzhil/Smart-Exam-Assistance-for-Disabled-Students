@@ -10,16 +10,24 @@
 
   <a href="#main-content" class="skip-link">Skip to main content</a>
 
-  <main id="main-content" class="container container-wide" role="main">
+  <main id="main-content" class="container container-wide sd-main" role="main">
 
-    <!-- Top bar -->
-    <div class="dash-topbar">
-      <div>
-        <h1>My Exams</h1>
-        <p class="subtitle">Welcome, <strong>{{ session.name }}</strong> ({{ session.roll }})</p>
+    <!-- Top bar — different from teacher: rounded pill header -->
+    <div class="dash-topbar sd-topbar">
+      <div class="sd-topbar-left">
+        <div class="sd-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        </div>
+        <div>
+          <h1>My Exams</h1>
+          <p class="subtitle">Welcome, <strong>{{ session.name }}</strong> <span class="sd-roll">({{ session.roll }})</span></p>
+        </div>
       </div>
       <div class="dash-topbar-actions">
-        <a href="{{ url_for('logout') }}" class="btn btn-nav">Logout</a>
+        <a href="{{ url_for('logout') }}" class="sd-btn-logout">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+          Logout
+        </a>
       </div>
     </div>
 
@@ -33,29 +41,37 @@
     {% endif %}
     {% endwith %}
 
-    <!-- Available papers -->
-    <section class="dash-section" role="region" aria-label="Available exams">
-      <h2>Available Question Papers</h2>
+    <!-- Available papers — bottom content panel -->
+    <section class="dash-section sd-papers-section" role="region" aria-label="Available exams">
+      <div class="sd-content-panel">
+        <h2 class="sd-section-title">
+          <span class="sd-section-dot"></span>
+          Available Question Papers
+        </h2>
 
       {% if papers | length == 0 %}
-      <div class="empty-state">
-        <p>No exams are available right now. Please check back later or contact your teacher.</p>
+      <div class="empty-state sd-empty">
+        <div class="sd-empty-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="56" height="56"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+        </div>
+        <p>No exams are available right now.<br>Please check back later or contact your teacher.</p>
       </div>
       {% else %}
 
-      <div class="paper-grid">
+      <div class="paper-grid sd-paper-grid">
         {% for paper in papers %}
-        <div class="paper-card paper-card-student">
+        <div class="paper-card sd-paper-card">
+          <div class="sd-card-glow"></div>
           <div class="paper-card-header">
             <h3 class="paper-subject">{{ paper.subject }}</h3>
-            <span class="paper-badge">{{ paper.num_questions }} Q</span>
+            <span class="paper-badge sd-badge">{{ paper.num_questions }} Q</span>
           </div>
           <div class="paper-card-body">
             <p class="paper-meta">
-              <span>By: {{ paper.teacher_name }}</span>
-              <span>{{ paper.uploaded_at }}</span>
+              <span><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" class="sd-meta-icon"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> {{ paper.teacher_name }}</span>
+              <span><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" class="sd-meta-icon"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/><path d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg> {{ paper.uploaded_at }}</span>
             </p>
-            <span class="mode-tag mode-tag-{{ paper.exam_mode }}">
+            <span class="mode-tag mode-tag-{{ paper.exam_mode }} sd-mode-tag">
               {% if paper.exam_mode == 'voice' %}Voice Exam
               {% elif paper.exam_mode == 'visual' %}Visual Exam
               {% else %}All Students{% endif %}
@@ -63,9 +79,12 @@
           </div>
           <div class="paper-card-footer">
             <a href="{{ url_for('start_exam', paper_id=paper.paper_id) }}"
-              class="btn btn-student btn-full"
+              class="sd-btn-start"
               aria-label="Start {{ paper.subject }} exam with {{ paper.num_questions }} questions">
-              Start Exam
+              <span class="sd-btn-start-text">Start Exam</span>
+              <span class="sd-btn-start-arrow">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+              </span>
             </a>
           </div>
         </div>
@@ -73,27 +92,33 @@
       </div>
 
       {% endif %}
+      </div>
     </section>
 
   </main>
 
+  <script type="application/json" id="student-dashboard-config">
+    {"voice_mode": {{ 'true' if student_mode == 'voice' else 'false' }}, "name": {{ session.name | tojson }}}
+  </script>
   <script>
-    /* Auto-speak only for voice-mode (blind) students */
-    {% if student_mode == 'voice' %}
-    var synth = window.speechSynthesis;
-    window.addEventListener('load', function () {
-      setTimeout(function () {
-        synth.cancel();
-        var count = document.querySelectorAll('.paper-card').length;
-        var msg = count > 0
-          ? 'Welcome {{ session.name }}. You have ' + count + ' exam' + (count > 1 ? 's' : '') + ' available. Use Tab to navigate to a paper and press Enter to start.'
-          : 'Welcome {{ session.name }}. No exams are available right now.';
-        var u = new SpeechSynthesisUtterance(msg);
-        u.rate = 1.0;
-        synth.speak(u);
-      }, 600);
-    });
-    {% endif %}
+    (function () {
+      var config = JSON.parse(document.getElementById('student-dashboard-config').textContent);
+      if (!config.voice_mode) return;
+      var synth = window.speechSynthesis;
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          synth.cancel();
+          var count = document.querySelectorAll('.paper-card').length;
+          var name = config.name || 'Student';
+          var msg = count > 0
+            ? 'Welcome ' + name + '. You have ' + count + ' exam' + (count > 1 ? 's' : '') + ' available. Use Tab to navigate to a paper and press Enter to start.'
+            : 'Welcome ' + name + '. No exams are available right now.';
+          var u = new SpeechSynthesisUtterance(msg);
+          u.rate = 1.0;
+          synth.speak(u);
+        }, 600);
+      });
+    })();
   </script>
 
 </body>
