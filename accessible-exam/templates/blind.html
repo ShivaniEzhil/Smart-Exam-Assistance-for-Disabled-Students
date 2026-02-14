@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Question Paper — Blind Mode</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <!-- Skip-to-content link for keyboard / screen-reader users -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <main id="main-content" class="container container-wide" role="main">
+
+    <h1>Upload Question Paper</h1>
+    <p class="subtitle">Upload your question paper (PDF or image) to begin the exam.</p>
+
+    <!-- ---- Error banner ---- -->
+    {% if error %}
+    <div class="error-box" role="alert" aria-live="assertive">
+      <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- ---- Upload form ---- -->
+    {% if not extracted_text %}
+    <form method="POST" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+
+      <div class="file-input-wrapper">
+        <label for="fileInput" class="file-label">
+          Choose a question paper file
+        </label>
+
+        <input
+          type="file"
+          name="question_paper"
+          id="fileInput"
+          accept=".pdf,image/*"
+          required
+          aria-label="Choose a question paper file — PDF or image"
+          aria-describedby="file-help"
+          class="file-input-accessible"
+        >
+
+        <p id="file-help" class="file-help">
+          Accepted formats: PDF, PNG, JPG, JPEG, WebP, BMP, TIFF, GIF (max 10 MB).
+        </p>
+      </div>
+
+      <p id="fileName" class="file-name" role="status" aria-live="polite"></p>
+
+      <!-- Visual-only drag-and-drop area (hidden from screen readers) -->
+      <div id="dropArea" class="drop-zone-area" aria-hidden="true">
+        <div class="drop-icon">📄</div>
+        <p>Or drag &amp; drop a file here</p>
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-blind"
+        id="startBtn"
+        disabled
+        aria-label="Upload the selected file and start the exam"
+      >
+        Upload &amp; Start Exam
+      </button>
+    </form>
+    {% endif %}
+
+    <!-- ---- OCR result ---- -->
+    {% if extracted_text %}
+    <div class="ocr-preview" role="region" aria-label="Extracted text preview">
+      <h2>Text Extracted Successfully</h2>
+
+      <p class="ocr-summary" role="status">
+        Found <strong>{{ num_instructions }}</strong> instruction(s)
+        and <strong>{{ num_questions }}</strong> question(s).
+      </p>
+
+      <details>
+        <summary>View extracted text</summary>
+        <pre>{{ extracted_text }}</pre>
+      </details>
+
+      <a
+        href="{{ url_for('blind_exam') }}"
+        class="btn btn-answer proceed-btn"
+        aria-label="Proceed to the exam"
+      >
+        Proceed to Exam
+      </a>
+    </div>
+    {% endif %}
+
+    <div class="nav-row">
+      <a href="{{ url_for('index') }}" class="btn btn-upload" aria-label="Go back to mode selection">
+        ← Back to Home
+      </a>
+    </div>
+
+  </main>
+
+  <!-- Pass page-state to JS without mixing Jinja in <script> -->
+  <div id="page-state" hidden
+    data-page-mode="{% if extracted_text %}extracted{% elif error %}error{% else %}upload{% endif %}"
+    data-num-instructions="{{ num_instructions }}"
+    data-num-questions="{{ num_questions }}"
+    data-error="{{ error or '' }}"
+  ></div>
+
+  <!-- ================================================ -->
+  <!-- Client-side JS: auto-speak + accessible upload   -->
+  <!-- ================================================ -->
+  <script>
+    var fileInput  = document.getElementById('fileInput');
+    var fileName   = document.getElementById('fileName');
+    var startBtn   = document.getElementById('startBtn');
+    var dropArea   = document.getElementById('dropArea');
+    var synth      = window.speechSynthesis;
+
+    /* ---- TTS helper ---- */
+    function speakMessage(text) {
+      synth.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.0;
+      synth.speak(u);
+    }
+
+    /* ---- File selection ---- */
+    if (fileInput) {
+      fileInput.addEventListener('change', function () {
+        if (fileInput.files.length > 0) {
+          var name = fileInput.files[0].name;
+          fileName.textContent = 'Selected file: ' + name;
+          startBtn.disabled = false;
+          speakMessage(
+            'File selected: ' + name +
+            '. Press Tab to navigate to the Upload button, then press Enter.'
+          );
+        }
+      });
+    }
+
+    /* ---- Drag-and-drop (visual enhancement only) ---- */
+    if (dropArea && fileInput) {
+      dropArea.addEventListener('click', function () { fileInput.click(); });
+      dropArea.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        dropArea.classList.add('hover');
+      });
+      dropArea.addEventListener('dragleave', function () { dropArea.classList.remove('hover'); });
+      dropArea.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dropArea.classList.remove('hover');
+        fileInput.files = e.dataTransfer.files;
+        fileInput.dispatchEvent(new Event('change'));
+      });
+    }
+
+    /* ---- Auto-speak on page load ---- */
+    window.addEventListener('load', function () {
+      var state = document.getElementById('page-state');
+      var mode  = state.dataset.pageMode;
+
+      setTimeout(function () {
+        if (mode === 'extracted') {
+          speakMessage(
+            'Text extracted successfully. Found ' + state.dataset.numInstructions +
+            ' instructions and ' + state.dataset.numQuestions + ' questions. ' +
+            'Press Tab to navigate to the Proceed to Exam button.'
+          );
+        } else if (mode === 'error') {
+          speakMessage('Error. ' + state.dataset.error);
+        } else {
+          speakMessage(
+            'Welcome to Blind Mode. ' +
+            'Please upload your question paper as a PDF or image. ' +
+            'Press Tab to reach the file chooser, then press Enter to browse.'
+          );
+        }
+      }, 600);
+    });
+  </script>
+
+</body>
+</html>

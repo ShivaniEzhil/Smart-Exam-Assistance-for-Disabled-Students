@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blind Mode Exam — Accessible Exam Tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <main id="main-content" class="exam-layout" role="main">
+
+    <!-- ===================== TOP BAR ===================== -->
+    <div class="exam-topbar">
+      <a href="{{ url_for('reset') }}" class="topbar-link" aria-label="Upload new paper">← Upload New Paper</a>
+      <button class="btn btn-help" onclick="toggleHelp()" aria-label="Help (H)">Help (H)</button>
+    </div>
+
+    <!-- ===================== HEADER ===================== -->
+    <h1 class="exam-title">Blind Mode Exam</h1>
+    <div id="status-bar" class="status-bar" role="status" aria-live="polite" aria-atomic="true">
+      Loading exam…
+    </div>
+
+    <!-- ===================== HELP PANEL ===================== -->
+    <div id="help-panel" class="help-panel" role="dialog" aria-label="Keyboard shortcuts" hidden>
+      <h2>Keyboard Shortcuts</h2>
+      <ul>
+        <li><kbd>R</kbd> — Repeat question</li>
+        <li><kbd>A</kbd> — Answer by voice</li>
+        <li><kbd>C</kbd> — Clear answer</li>
+        <li><kbd>Enter</kbd> — Submit &amp; Next</li>
+        <li><kbd>N</kbd> / <kbd>→</kbd> — Skip</li>
+        <li><kbd>P</kbd> / <kbd>←</kbd> — Previous</li>
+        <li><kbd>V</kbd> — Review all answers</li>
+        <li><kbd>+</kbd> / <kbd>−</kbd> — Speed</li>
+        <li><kbd>H</kbd> — Help</li>
+        <li><kbd>Esc</kbd> — Stop / Cancel</li>
+      </ul>
+      <button class="btn btn-read" onclick="toggleHelp()">Close</button>
+    </div>
+
+    <!-- ===================== MAIN CONTENT AREA ===================== -->
+    <div class="exam-body">
+
+      <!-- LEFT: Question card -->
+      <div class="exam-left">
+
+        <!-- Question number badge -->
+        <div id="q-badge" class="q-badge" hidden>
+          <span id="q-badge-text">Question 1</span>
+        </div>
+
+        <!-- Question text -->
+        <div id="question-box" class="question-card" aria-live="polite" aria-atomic="true">
+          <p id="question-text">Loading…</p>
+        </div>
+
+        <!-- Diagram warning -->
+        <div id="diagram-warning" class="diagram-warning" hidden aria-live="polite">
+          ⚠ This question has a diagram/image. Ask your invigilator to describe it.
+        </div>
+
+        <!-- Answer display -->
+        <div id="answer-box" class="answer-box" hidden aria-live="polite">
+          <strong>Your Answer:</strong>
+          <p id="answer-text"></p>
+        </div>
+
+        <!-- Recording indicator -->
+        <div id="recording-bar" class="recording-indicator" hidden aria-live="assertive">
+          <span class="recording-dot"></span> Listening… Speak now.
+        </div>
+
+        <!-- Navigation row: Previous / counter / Next -->
+        <div id="nav-row" class="q-nav-row" hidden>
+          <button id="btn-prev" class="btn btn-nav" aria-label="Previous question (P)">← Previous</button>
+          <span id="q-counter" class="q-counter">Question 1 of 60</span>
+          <button id="btn-next" class="btn btn-nav" aria-label="Next question (N)">Next →</button>
+        </div>
+
+        <!-- Action buttons -->
+        <div id="btns-instr" class="action-row" hidden>
+          <button id="btn-read-instr" class="btn btn-read">Read Instructions</button>
+          <button id="btn-start" class="btn btn-answer">Start Questions</button>
+        </div>
+
+        <div id="btns-main" class="action-row" hidden>
+          <button id="btn-repeat" class="btn btn-read" aria-label="Repeat (R)">Repeat</button>
+          <button id="btn-answer" class="btn btn-answer" aria-label="Answer (A)">Answer</button>
+          <button id="btn-clear" class="btn btn-clear" aria-label="Clear (C)" hidden>Clear</button>
+        </div>
+
+        <div id="btns-submit" class="action-row" hidden>
+          <button id="btn-submit-next" class="btn btn-submit" aria-label="Submit & Next (Enter)">Submit &amp; Next</button>
+        </div>
+
+        <div id="btns-done" class="action-row" hidden>
+          <button id="btn-review" class="btn btn-read" aria-label="Review (V)">Review Answers</button>
+          <button id="btn-finish" class="btn btn-submit" aria-label="Finish (Enter)">Finish Exam</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: Question grid -->
+      <div class="exam-right" id="grid-panel" hidden>
+        <h3 class="grid-title">Questions</h3>
+        <div id="q-grid" class="q-grid" role="navigation" aria-label="Jump to question">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Speed indicator -->
+    <div id="speed-indicator" class="speed-indicator" aria-live="polite" hidden>
+      Speed: <span id="speed-value">1.0×</span>
+    </div>
+
+  </main>
+
+  <!-- DATA from Flask (application/json is not executed, just read by JS) -->
+  <script id="exam-json" type="application/json">
+  {
+    "instructions": {{ instructions | tojson }},
+    "questions":    {{ questions | tojson }},
+    "answers":      {{ answers | tojson }},
+    "total":        {{ total_questions }}
+  }
+  </script>
+
+  <script>
+    /* ==========================  DATA  ========================== */
+    var _raw = JSON.parse(document.getElementById('exam-json').textContent);
+    var INSTRUCTIONS  = _raw.instructions  || [];
+    var QUESTIONS     = _raw.questions     || [];
+    var SAVED_ANSWERS = _raw.answers       || {};
+    var TOTAL         = _raw.total         || 0;
+
+    /* ==========================  STATE  ========================= */
+    var phase   = 'instructions';
+    var qIdx    = 0;
+    var answers = {};
+    var rate    = 1.0;
+    var speaking = false, listening = false;
+    Object.keys(SAVED_ANSWERS).forEach(function (k) { answers[k] = SAVED_ANSWERS[k]; });
+
+    /* ==========================  DOM  =========================== */
+    var $status   = document.getElementById('status-bar');
+    var $qText    = document.getElementById('question-text');
+    var $aBox     = document.getElementById('answer-box');
+    var $aText    = document.getElementById('answer-text');
+    var $recBar   = document.getElementById('recording-bar');
+    var $diagWarn = document.getElementById('diagram-warning');
+    var $help     = document.getElementById('help-panel');
+    var $speedInd = document.getElementById('speed-indicator');
+    var $speedVal = document.getElementById('speed-value');
+    var $badge    = document.getElementById('q-badge');
+    var $badgeTxt = document.getElementById('q-badge-text');
+    var $navRow   = document.getElementById('nav-row');
+    var $counter  = document.getElementById('q-counter');
+    var $gridPnl  = document.getElementById('grid-panel');
+    var $grid     = document.getElementById('q-grid');
+
+    var $bInstr   = document.getElementById('btns-instr');
+    var $bMain    = document.getElementById('btns-main');
+    var $bSub     = document.getElementById('btns-submit');
+    var $bDone    = document.getElementById('btns-done');
+
+    var btnReadI  = document.getElementById('btn-read-instr');
+    var btnStart  = document.getElementById('btn-start');
+    var btnRepeat = document.getElementById('btn-repeat');
+    var btnAnswer = document.getElementById('btn-answer');
+    var btnClear  = document.getElementById('btn-clear');
+    var btnPrev   = document.getElementById('btn-prev');
+    var btnNext   = document.getElementById('btn-next');
+    var btnSubN   = document.getElementById('btn-submit-next');
+    var btnReview = document.getElementById('btn-review');
+    var btnFinish = document.getElementById('btn-finish');
+
+    /* ==========================  GRID  ========================== */
+    function buildGrid() {
+      $grid.innerHTML = '';
+      for (var i = 0; i < TOTAL; i++) {
+        var b = document.createElement('button');
+        b.className = 'grid-btn';
+        b.textContent = 'Q' + (i + 1);
+        b.dataset.idx = i;
+        b.setAttribute('aria-label', 'Jump to question ' + (i + 1));
+        b.addEventListener('click', (function (idx) {
+          return function () { qIdx = idx; showQ(); };
+        })(i));
+        $grid.appendChild(b);
+      }
+    }
+
+    function updateGrid() {
+      var btns = $grid.querySelectorAll('.grid-btn');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].classList.remove('grid-current', 'grid-answered');
+        if (i === qIdx) btns[i].classList.add('grid-current');
+        else if (answers[String(i)]) btns[i].classList.add('grid-answered');
+      }
+    }
+
+    /* ==========================  TTS  =========================== */
+    var synth = window.speechSynthesis;
+    function say(text, cb) {
+      synth.cancel(); speaking = true;
+      var u = new SpeechSynthesisUtterance(text);
+      u.rate = rate; u.pitch = 1; u.volume = 1;
+      u.onend = function () { speaking = false; if (cb) cb(); };
+      u.onerror = function () { speaking = false; };
+      synth.speak(u);
+    }
+    function hush() { synth.cancel(); speaking = false; }
+
+    /* ==========================  STT  =========================== */
+    var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var rec = null;
+    function listen() {
+      if (!SpeechRec) { say('Speech recognition not supported. Use Chrome.'); return; }
+      if (phase !== 'questions' || listening) return;
+      listening = true; $recBar.hidden = false;
+      stat('Listening…');
+      say('Listening. Speak your answer now.', function () {
+        rec = new SpeechRec();
+        rec.lang = 'en-US'; rec.continuous = false;
+        rec.interimResults = false; rec.maxAlternatives = 1;
+        rec.onresult = function (e) {
+          listening = false; $recBar.hidden = true;
+          onVoice(e.results[0][0].transcript);
+        };
+        rec.onerror = function (e) {
+          listening = false; $recBar.hidden = true;
+          if (e.error === 'no-speech') say('No speech detected. Press A to try again.');
+          else if (e.error === 'not-allowed') say('Microphone blocked.');
+          else say('Could not recognise. Press A again.');
+          stat('Press A to try again.');
+        };
+        rec.onend = function () { listening = false; $recBar.hidden = true; };
+        rec.start();
+      });
+    }
+    function stopRec() { if (rec) rec.abort(); listening = false; $recBar.hidden = true; }
+
+    /* ==========================  ANSWER  ======================== */
+    function onVoice(text) {
+      answers[String(qIdx)] = text;
+      $aText.textContent = text; $aBox.hidden = false;
+      btnClear.hidden = false;
+      updateGrid();
+      stat('Answer recorded.');
+      say('Your answer is: ' + text + '. Press Enter to submit, A to re-record, or C to clear.');
+    }
+    function clearAns() {
+      hush(); delete answers[String(qIdx)];
+      $aText.textContent = ''; $aBox.hidden = true; btnClear.hidden = true;
+      updateGrid(); stat('Cleared.');
+      say('Answer cleared. Press A to record.');
+    }
+    function submitNext() {
+      hush();
+      var ans = answers[String(qIdx)];
+      if (!ans) { say('No answer yet. Press A to record, or N to skip.'); return; }
+      saveAnswer(qIdx, ans);
+      if (qIdx < TOTAL - 1) { say('Submitted.', function () { qIdx++; showQ(); }); }
+      else { say('Submitted. Last question done.', function () { showDone(); }); }
+    }
+    function skip() {
+      hush();
+      if (phase === 'instructions') { qIdx = 0; showQ(); return; }
+      if (qIdx < TOTAL - 1) { say('Skipped.', function () { qIdx++; showQ(); }); }
+      else say('Last question. Submit or review.');
+    }
+    function prev() { hush(); if (phase === 'questions' && qIdx > 0) { qIdx--; showQ(); } }
+    function saveAnswer(idx, text) {
+      fetch('/api/save-answer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question_index: idx, answer: text })
+      }).catch(function (e) { console.error('Save failed', e); });
+    }
+
+    /* ==========================  PHASES  ======================== */
+    function showInstr() {
+      phase = 'instructions'; qIdx = 0;
+      $qText.textContent = INSTRUCTIONS.length ? INSTRUCTIONS.join('\n') : 'No instructions.';
+      hideAll(); $bInstr.hidden = false;
+      $badge.hidden = true; $navRow.hidden = true; $gridPnl.hidden = true;
+      $aBox.hidden = true; $diagWarn.hidden = true;
+      stat(INSTRUCTIONS.length + ' instructions, ' + TOTAL + ' questions.');
+      say('Welcome. ' + TOTAL + ' questions. Press R to hear instructions, or Enter to start.');
+    }
+
+    function showQ() {
+      phase = 'questions';
+      if (qIdx >= TOTAL) { showDone(); return; }
+
+      var q   = QUESTIONS[qIdx];
+      var num = qIdx + 1;
+      var hasDiag = /\[NOTE:.*diagram|figure|image/i.test(q);
+
+      // Badge
+      $badge.hidden = false;
+      $badgeTxt.textContent = 'Question ' + num;
+
+      // Question text
+      $qText.textContent = q;
+      $diagWarn.hidden = !hasDiag;
+
+      // Answer
+      if (answers[String(qIdx)]) {
+        $aText.textContent = answers[String(qIdx)];
+        $aBox.hidden = false; btnClear.hidden = false;
+      } else {
+        $aBox.hidden = true; btnClear.hidden = true;
+      }
+      $recBar.hidden = true;
+
+      // Navigation
+      $navRow.hidden = false;
+      btnPrev.style.visibility = (qIdx > 0) ? 'visible' : 'hidden';
+      btnNext.style.visibility = (qIdx < TOTAL - 1) ? 'visible' : 'hidden';
+      $counter.textContent = 'Question ' + num + ' of ' + TOTAL;
+
+      // Buttons
+      hideAll();
+      $bMain.hidden = false; $bSub.hidden = false;
+
+      // Grid
+      $gridPnl.hidden = false;
+      updateGrid();
+
+      stat('Question ' + num + ' of ' + TOTAL);
+      var speech = 'Question ' + num + ' of ' + TOTAL + '. ' + q;
+      if (hasDiag) speech += ' Warning: this question has a diagram. Ask your invigilator.';
+      say(speech);
+    }
+
+    function showDone() {
+      phase = 'completed';
+      var n = Object.keys(answers).length;
+      $badge.hidden = true;
+      $qText.textContent = 'Exam complete!\n\nYou answered ' + n + ' of ' + TOTAL + ' questions.';
+      hideAll(); $bDone.hidden = false;
+      $navRow.hidden = true; $aBox.hidden = true; $diagWarn.hidden = true;
+      updateGrid();
+      say('Exam complete. ' + n + ' of ' + TOTAL + ' answered. Press V to review or Enter to finish.');
+    }
+
+    function hideAll() {
+      $bInstr.hidden = true; $bMain.hidden = true;
+      $bSub.hidden = true; $bDone.hidden = true;
+    }
+
+    /* ==========================  REPEAT / REVIEW  =============== */
+    function repeat() {
+      hush();
+      if (phase === 'instructions') say('Instructions. ' + (INSTRUCTIONS.length ? INSTRUCTIONS.join('. ') : 'None.'));
+      else if (phase === 'questions') say('Question ' + (qIdx + 1) + ' of ' + TOTAL + '. ' + QUESTIONS[qIdx]);
+    }
+    function review() {
+      hush(); var parts = [];
+      for (var i = 0; i < TOTAL; i++) parts.push('Question ' + (i + 1) + ': ' + (answers[String(i)] || 'Not answered'));
+      say('Your answers. ' + parts.join('. '));
+    }
+    function finish() { window.location.href = '/completed'; }
+
+    /* ==========================  SPEED  ========================= */
+    function faster() { rate = Math.min(rate + 0.25, 3); showSpd(); }
+    function slower() { rate = Math.max(rate - 0.25, 0.5); showSpd(); }
+    function showSpd() {
+      $speedVal.textContent = rate.toFixed(1) + '×'; $speedInd.hidden = false;
+      say('Speed ' + rate.toFixed(1));
+      setTimeout(function () { $speedInd.hidden = true; }, 3000);
+    }
+
+    /* ==========================  HELP  ========================== */
+    function toggleHelp() {
+      var open = $help.hidden; $help.hidden = !open;
+      if (open) say('Help. R repeat. A answer. C clear. Enter submit. N skip. P previous. V review. H close.');
+      else say('Help closed.');
+    }
+
+    /* ==========================  UTILITY  ======================= */
+    function stat(t) { $status.textContent = t; }
+
+    /* ==========================  KEYS  ========================== */
+    document.addEventListener('keydown', function (e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      var k = e.key.toLowerCase();
+      if (k === 'h')     { e.preventDefault(); toggleHelp(); return; }
+      if (k === 'escape') {
+        e.preventDefault();
+        if (!$help.hidden) toggleHelp();
+        else if (listening) { stopRec(); say('Cancelled.'); }
+        else hush();
+        return;
+      }
+      if (k === '+' || k === '=') { e.preventDefault(); faster(); return; }
+      if (k === '-')              { e.preventDefault(); slower(); return; }
+      if (k === 's')              { e.preventDefault(); showSpd(); return; }
+      if (k === 'v')              { e.preventDefault(); review(); return; }
+      if (k === 'r')              { e.preventDefault(); repeat(); return; }
+      if (k === 'a')              { e.preventDefault(); listen(); return; }
+      if (k === 'c')              { e.preventDefault(); if (phase === 'questions') clearAns(); return; }
+      if (k === 'enter') {
+        e.preventDefault();
+        if (phase === 'instructions') { qIdx = 0; showQ(); }
+        else if (phase === 'questions') submitNext();
+        else if (phase === 'completed') finish();
+        return;
+      }
+      if (k === 'n' || k === 'arrowright') { e.preventDefault(); skip(); return; }
+      if (k === 'p' || k === 'arrowleft')  { e.preventDefault(); prev(); return; }
+    });
+
+    /* ==========================  CLICKS  ======================== */
+    btnReadI.addEventListener('click',  function () { repeat(); });
+    btnStart.addEventListener('click',  function () { qIdx = 0; showQ(); });
+    btnRepeat.addEventListener('click', function () { repeat(); });
+    btnAnswer.addEventListener('click', function () { listen(); });
+    btnClear.addEventListener('click',  function () { clearAns(); });
+    btnPrev.addEventListener('click',   function () { prev(); });
+    btnNext.addEventListener('click',   function () { skip(); });
+    btnSubN.addEventListener('click',   function () { submitNext(); });
+    btnReview.addEventListener('click', function () { review(); });
+    btnFinish.addEventListener('click', function () { finish(); });
+
+    /* ==========================  INIT  ========================== */
+    buildGrid();
+
+    // Run immediately — don't wait for onload (it may already have fired)
+    (function init() {
+      if (TOTAL > 0 && INSTRUCTIONS.length === 0) {
+        // No separate instructions — start with question 1 right away
+        showQ();
+      } else if (INSTRUCTIONS.length > 0) {
+        showInstr();
+      } else {
+        say('No content found. Go back and upload a paper.');
+      }
+    })();
+  </script>
+
+</body>
+</html>

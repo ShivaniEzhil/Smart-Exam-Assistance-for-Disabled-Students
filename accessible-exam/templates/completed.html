@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exam Completed — Accessible Exam Tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <main id="main-content" class="container exam-page" role="main">
+
+    <h1>Exam Completed</h1>
+
+    <!-- Summary -->
+    <div class="completion-summary" role="status">
+      <p class="completion-stat">
+        You answered
+        <strong>{{ answers | length }}</strong> of
+        <strong>{{ total }}</strong> questions.
+      </p>
+    </div>
+
+    <!-- Answers Review -->
+    <section class="answers-review" role="region" aria-label="Your answers">
+      <h2>Your Answers</h2>
+
+      {% for i in range(total) %}
+      <div class="answer-review-item">
+        <h3>Question {{ i + 1 }}</h3>
+        <p class="review-question">
+          {{ questions[i] if i < questions | length else "Question not found" }}
+        </p>
+        <p class="review-answer">
+          {% if answers.get(i | string) %}
+            <strong>Answer:</strong> {{ answers[i | string] }}
+          {% else %}
+            <em>Not answered</em>
+          {% endif %}
+        </p>
+      </div>
+      {% endfor %}
+    </section>
+
+    <!-- Action buttons -->
+    <div class="action-row nav-row">
+      <button id="btn-read-all" class="btn btn-read"
+        aria-label="Read all answers aloud (shortcut R)">
+        Read All Answers
+      </button>
+      <a href="{{ url_for('reset') }}" class="btn btn-blind"
+        aria-label="Start a new exam">
+        New Exam
+      </a>
+      <a href="{{ url_for('index') }}" class="btn btn-upload"
+        aria-label="Go back to home page">
+        Back to Home
+      </a>
+    </div>
+
+  </main>
+
+  <script>
+    const synth     = window.speechSynthesis;
+    const answers   = {{ answers | tojson }};
+    const questions = {{ questions | tojson }};
+    const total     = {{ total }};
+
+    function speakMsg(text) {
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.0;
+      synth.speak(u);
+    }
+
+    function readAllAnswers() {
+      let text = 'Your exam answers. ';
+      for (let i = 0; i < total; i++) {
+        const ans = answers[String(i)];
+        text += 'Question ' + (i + 1) + ': ' + (ans || 'Not answered') + '. ';
+      }
+      speakMsg(text);
+    }
+
+    document.getElementById('btn-read-all').addEventListener('click', readAllAnswers);
+
+    /* Keyboard shortcut: R to read all */
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key.toLowerCase() === 'r') { e.preventDefault(); readAllAnswers(); }
+    });
+
+    /* Auto-speak on load */
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const answered = Object.keys(answers).length;
+        speakMsg(
+          'Exam completed. You answered ' + answered +
+          ' of ' + total + ' questions. Press R to hear all your answers.'
+        );
+      }, 600);
+    });
+  </script>
+
+</body>
+</html>

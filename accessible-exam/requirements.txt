@@ -1,0 +1,24 @@
+# Accessible Exam Tool — Dependencies
+
+# Web framework
+flask>=2.0.0
+
+# OCR (extract text from question paper images)
+pytesseract
+Pillow
+
+# PDF text extraction (for question papers uploaded as PDF)
+pypdf
+
+# Werkzeug (included with Flask — used for secure_filename)
+# werkzeug
+
+# -------------------------------------------------------
+# NOTE: pyttsx3, SpeechRecognition, and PyAudio have been
+# removed.  Text-to-Speech and Speech-to-Text now run
+# entirely in the browser via the Web Speech API, which:
+#   - Eliminates server blocking
+#   - Provides instant, real-time responses
+#   - Removes the need for PyAudio system dependencies
+#   - Works offline for TTS (browser-native voices)
+# -------------------------------------------------------

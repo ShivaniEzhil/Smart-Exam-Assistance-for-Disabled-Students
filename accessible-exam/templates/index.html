@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accessible Exam Tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <main id="main-content" class="container" role="main">
+    <h1>Accessible Exam Tool</h1>
+    <p class="subtitle">
+      Select your accessibility mode to start the exam.
+    </p>
+
+    <nav class="mode-buttons" aria-label="Accessibility mode selection">
+      <a href="{{ url_for('blind') }}"
+        class="btn btn-blind"
+        role="button"
+        aria-label="Start exam in Blind Mode — questions read aloud, answer by voice">
+        Blind Mode
+      </a>
+
+      <a href="{{ url_for('deaf') }}"
+        class="btn btn-deaf"
+        role="button"
+        aria-label="Start exam in Deaf and Mute Mode — sign language support">
+        Deaf &amp; Mute Mode
+      </a>
+    </nav>
+  </main>
+
+</body>
+</html>

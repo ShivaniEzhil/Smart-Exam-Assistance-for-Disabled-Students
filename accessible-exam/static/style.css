@@ -1,0 +1,738 @@
+/* =======================================================
+   Accessible Exam Tool — stylesheet
+   Accessible layout with illustration background
+   ======================================================= */
+
+/* ---------- Reset ---------- */
+* {
+  box-sizing: border-box;
+}
+
+/* Ensure hidden attribute always works, even when CSS sets display */
+[hidden] {
+  display: none !important;
+}
+
+/* ---------- Body ---------- */
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1a1a1a;
+  background: #e8f4f8 url('image.png') no-repeat center center;
+  background-size: cover;
+  background-attachment: fixed;
+  padding: 1.5rem 1rem;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Light overlay so text stays readable */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.88);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* =======================================================
+   Skip-to-content link (visible only on focus)
+   ======================================================= */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 12px 24px;
+  z-index: 100;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 8px 0;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* =======================================================
+   Container — centred card
+   ======================================================= */
+.container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  background: rgba(253, 247, 231, 0.95);
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Wider container — used on upload & exam pages */
+.container-wide {
+  max-width: 1000px;
+  padding: 3rem;
+}
+
+/* =======================================================
+   Typography
+   ======================================================= */
+h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #1a1a1a;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 0.5rem;
+}
+
+h2 {
+  font-size: 1.3rem;
+  margin: 0 0 1rem;
+}
+
+.subtitle {
+  color: #444;
+  margin: 0 0 1.75rem;
+  font-size: 1rem;
+}
+
+/* =======================================================
+   Back / nav links
+   ======================================================= */
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  padding: 0.25rem 0;
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 500;
+}
+.back:hover { text-decoration: underline; }
+.back:focus { outline: 3px solid #ff9800; outline-offset: 2px; }
+
+/* =======================================================
+   Mode selection buttons
+   ======================================================= */
+.mode-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* =======================================================
+   Generic button
+   ======================================================= */
+.btn {
+  display: block;
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #fff;
+  transition: opacity 0.2s, transform 0.1s;
+  min-height: 48px;
+}
+.btn:hover  { opacity: 0.92; }
+.btn:active { transform: scale(0.98); }
+.btn:focus-visible {
+  outline: 3px solid #ff9800;
+  outline-offset: 3px;
+}
+
+/* Colour variants */
+.btn-blind  { background: #6a1b9a; }
+.btn-deaf   { background: #c62828; }
+.btn-upload { background: #6a1b9a; color: #fff; padding: 10px 22px; border-radius: 10px; font-weight: 600; }
+.btn-read   { background: #1976d2; }
+.btn-answer { background: #2e7d32; }
+.btn-nav    { background: #455a64; }
+.btn-help   { background: #ff9800; padding: 10px 22px; border-radius: 10px; font-weight: 600; }
+.btn-submit { background: #2e7d32; }
+
+/* Disabled state */
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =======================================================
+   Placeholder text
+   ======================================================= */
+.placeholder           { color: #555; font-style: italic; }
+.exam-page .placeholder { margin-top: 1rem; }
+
+/* =======================================================
+   Upload form
+   ======================================================= */
+.upload-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.file-input-wrapper {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.file-label {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Make the native file input visible and styled (accessible) */
+.file-input-accessible {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 1rem;
+  border: 2px solid #6a1b9a;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+.file-input-accessible:focus-visible {
+  outline: 3px solid #ff9800;
+  outline-offset: 2px;
+}
+
+.file-help {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 4px 0 0;
+}
+
+.file-name {
+  margin-top: 10px;
+  font-size: 0.95rem;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Visual-only drag-and-drop zone */
+.drop-zone-area {
+  width: 100%;
+  max-width: 500px;
+  height: 140px;
+  border: 2px dashed #ccc;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 16px 0;
+  transition: background 0.3s, border-color 0.3s;
+  background: #f9f9f9;
+  color: #888;
+}
+.drop-zone-area.hover {
+  border-color: #6a1b9a;
+  background: #f3e5f5;
+  color: #6a1b9a;
+}
+.drop-zone-area .drop-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+/* =======================================================
+   OCR preview
+   ======================================================= */
+.ocr-preview {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #f9f3fc;
+  border-radius: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.ocr-preview pre {
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+  color: #000;
+}
+.ocr-summary {
+  font-size: 1.05rem;
+  margin-bottom: 12px;
+}
+.proceed-btn {
+  display: inline-block;
+  margin-top: 16px;
+  text-decoration: none;
+}
+
+/* =======================================================
+   Error box
+   ======================================================= */
+.error-box {
+  background: #ffebee;
+  border-left: 6px solid #c62828;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  color: #b71c1c;
+}
+
+/* =======================================================
+   Exam layout — two-column (question left, grid right)
+   ======================================================= */
+.exam-layout {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.exam-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.topbar-link {
+  color: #6a1b9a;
+  font-weight: 600;
+  text-decoration: none;
+}
+.topbar-link:hover { text-decoration: underline; }
+
+.exam-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  border-bottom: 3px solid #6a1b9a;
+  padding-bottom: 0.5rem;
+  color: #1a1a1a;
+}
+
+.exam-body {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  margin-top: 16px;
+}
+
+/* Left column: question card + buttons */
+.exam-left {
+  flex: 1;
+  min-width: 0;
+  background: rgba(253, 247, 231, 0.95);
+  padding: 28px;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Right column: question grid */
+.exam-right {
+  width: 260px;
+  flex-shrink: 0;
+  background: rgba(253, 247, 231, 0.95);
+  padding: 20px;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 20px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Responsive: stack on small screens */
+@media (max-width: 768px) {
+  .exam-body { flex-direction: column; }
+  .exam-right { width: 100%; position: static; max-height: none; }
+}
+
+/* =======================================================
+   Question badge (e.g. "Question 5")
+   ======================================================= */
+.q-badge {
+  margin-bottom: 16px;
+}
+.q-badge span {
+  display: inline-block;
+  background: #6a1b9a;
+  color: #fff;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* =======================================================
+   Question card
+   ======================================================= */
+.question-card {
+  width: 100%;
+  background: #fff;
+  padding: 28px;
+  border-radius: 14px;
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: 18px;
+  white-space: pre-wrap;
+  border: 1px solid #e0e0e0;
+}
+
+/* legacy compat */
+.exam-page {
+  max-width: 96vw;
+  padding: 24px;
+  margin: 0 auto;
+}
+.question-box {
+  width: 100%;
+  background: #fffdf5;
+  padding: 30px;
+  border-radius: 18px;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  margin-bottom: 20px;
+  white-space: pre-wrap;
+}
+
+/* =======================================================
+   Question navigation row (← Previous  |  Q x of N  |  Next →)
+   ======================================================= */
+.q-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+.q-counter {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+}
+
+/* =======================================================
+   Question grid (right panel)
+   ======================================================= */
+.grid-title {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+  text-align: center;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 10px;
+}
+
+.q-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.grid-btn {
+  padding: 8px 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.grid-btn:hover {
+  border-color: #6a1b9a;
+  background: #f3e5f5;
+}
+.grid-btn:focus-visible {
+  outline: 3px solid #ff9800;
+  outline-offset: 2px;
+}
+
+/* Current question */
+.grid-btn.grid-current {
+  background: #6a1b9a;
+  color: #fff;
+  border-color: #6a1b9a;
+}
+
+/* Answered question */
+.grid-btn.grid-answered {
+  background: #2e7d32;
+  color: #fff;
+  border-color: #2e7d32;
+}
+
+/* Answer display */
+.answer-box {
+  background-color: #e8f5e9;
+  border-left: 6px solid #2e7d32;
+  padding: 18px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+  font-size: 1.05rem;
+}
+.answer-box h4 { margin-bottom: 8px; color: #1b5e20; }
+
+/* Recording indicator */
+.recording-indicator {
+  background: #ffebee;
+  border-left: 6px solid #c62828;
+  padding: 14px 18px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #c62828;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.recording-dot {
+  width: 14px;
+  height: 14px;
+  background: #c62828;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse-dot 1s infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+/* Clear button */
+.btn-clear {
+  background: #e65100;
+}
+
+/* Diagram / image warning banner */
+.diagram-warning {
+  background: #fff3e0;
+  border-left: 6px solid #e65100;
+  padding: 14px 18px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #bf360c;
+}
+
+/* Confirmation prompt */
+.confirm-box {
+  background: #fff8e1;
+  border-left: 6px solid #ff9800;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  font-size: 1rem;
+}
+.confirm-box kbd {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 0.95rem;
+}
+
+/* =======================================================
+   Status bar
+   ======================================================= */
+.status-bar {
+  background: #e3f2fd;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+  color: #1565c0;
+  font-weight: 500;
+}
+
+/* =======================================================
+   Help panel
+   ======================================================= */
+.help-panel {
+  background: #fff3e0;
+  border: 2px solid #ff9800;
+  padding: 20px;
+  border-radius: 14px;
+  margin-bottom: 20px;
+}
+.help-panel h2 { margin-top: 0; color: #e65100; }
+.help-panel ul  { padding-left: 20px; }
+.help-panel li  { margin-bottom: 8px; font-size: 1rem; }
+.help-panel kbd {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: monospace;
+  font-size: 0.95rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* =======================================================
+   Speed indicator (floating)
+   ======================================================= */
+.speed-indicator {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  z-index: 50;
+}
+
+/* =======================================================
+   Action row (buttons)
+   ======================================================= */
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+.action-row .btn,
+.action-row button {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+/* =======================================================
+   Nav row (bottom links)
+   ======================================================= */
+.nav-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* =======================================================
+   Progress bar
+   ======================================================= */
+.progress-area {
+  margin-top: 20px;
+}
+.progress-bar {
+  height: 12px;
+  background: #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: #2e7d32;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+.progress-text {
+  font-size: 0.9rem;
+  color: #555;
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* =======================================================
+   Completion page
+   ======================================================= */
+.completion-summary {
+  background: #e8f5e9;
+  padding: 20px;
+  border-radius: 14px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+.completion-stat {
+  font-size: 1.2rem;
+  color: #1b5e20;
+  margin: 0;
+}
+
+.answers-review h2 { margin-bottom: 16px; }
+
+.answer-review-item {
+  background: #fffdf5;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border-left: 4px solid #6a1b9a;
+}
+.answer-review-item h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: #6a1b9a;
+}
+.review-question { color: #333; margin-bottom: 6px; }
+.review-answer   { color: #1b5e20; }
+
+/* =======================================================
+   Reset row (legacy compat)
+   ======================================================= */
+.reset-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* =======================================================
+   Responsive
+   ======================================================= */
+@media (min-width: 768px) {
+  .exam-page { max-width: 800px; }
+}
+@media (min-width: 1300px) {
+  .exam-page { max-width: 1000px; }
+}
+
+/* =======================================================
+   ACCESSIBILITY: focus, reduced-motion, high-contrast
+   ======================================================= */
+
+/* Better focus ring for all interactive elements */
+:focus-visible {
+  outline: 3px solid #ff9800;
+  outline-offset: 3px;
+}
+
+/* Reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* High-contrast mode */
+@media (prefers-contrast: high) {
+  .container, .exam-page { background: #fff; border: 3px solid #000; }
+  .btn                   { border: 2px solid #000; }
+  .question-box          { border: 2px solid #000; }
+  .answer-box            { border: 2px solid #000; }
+  .confirm-box           { border: 2px solid #000; }
+}
