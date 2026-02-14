@@ -62,23 +62,29 @@
 
   </main>
 
+  <!-- Data passed from Flask (no linter errors this way) -->
+  <script type="application/json" id="completed-json">
+    { "answers": {{ answers | tojson }}, "questions": {{ questions | tojson }}, "total": {{ total }} }
+  </script>
+
   <script>
-    const synth     = window.speechSynthesis;
-    const answers   = {{ answers | tojson }};
-    const questions = {{ questions | tojson }};
-    const total     = {{ total }};
+    var _data     = JSON.parse(document.getElementById('completed-json').textContent);
+    var synth     = window.speechSynthesis;
+    var answers   = _data.answers;
+    var questions = _data.questions;
+    var total     = _data.total;
 
     function speakMsg(text) {
       synth.cancel();
-      const u = new SpeechSynthesisUtterance(text);
+      var u = new SpeechSynthesisUtterance(text);
       u.rate = 1.0;
       synth.speak(u);
     }
 
     function readAllAnswers() {
-      let text = 'Your exam answers. ';
-      for (let i = 0; i < total; i++) {
-        const ans = answers[String(i)];
+      var text = 'Your exam answers. ';
+      for (var i = 0; i < total; i++) {
+        var ans = answers[String(i)];
         text += 'Question ' + (i + 1) + ': ' + (ans || 'Not answered') + '. ';
       }
       speakMsg(text);
@@ -87,15 +93,15 @@
     document.getElementById('btn-read-all').addEventListener('click', readAllAnswers);
 
     /* Keyboard shortcut: R to read all */
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', function (e) {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key.toLowerCase() === 'r') { e.preventDefault(); readAllAnswers(); }
     });
 
     /* Auto-speak on load */
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        const answered = Object.keys(answers).length;
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var answered = Object.keys(answers).length;
         speakMsg(
           'Exam completed. You answered ' + answered +
           ' of ' + total + ' questions. Press R to hear all your answers.'

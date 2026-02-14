@@ -356,11 +356,7 @@ h2 {
   overflow-y: auto;
 }
 
-/* Responsive: stack on small screens */
-@media (max-width: 768px) {
-  .exam-body { flex-direction: column; }
-  .exam-right { width: 100%; position: static; max-height: none; }
-}
+/* Responsive stacking handled in Responsive section below */
 
 /* =======================================================
    Question badge (e.g. "Question 5")
@@ -391,6 +387,61 @@ h2 {
   margin-bottom: 18px;
   white-space: pre-wrap;
   border: 1px solid #e0e0e0;
+}
+
+/* Speaker mute/unmute toggle — inside question card */
+.question-card {
+  position: relative;
+}
+.btn-speaker {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.btn-speaker:hover {
+  background: #f5f5f5;
+}
+.btn-speaker.is-muted {
+  background: #ffebee;
+  border-color: #c62828;
+  color: #c62828;
+}
+.btn-speaker:focus-visible {
+  outline: 3px solid #ff9800;
+  outline-offset: 3px;
+}
+.speaker-icon {
+  width: 26px;
+  height: 26px;
+}
+.speaker-shortcut {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  background: #333;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 50%;
+}
+.btn-speaker.is-muted .speaker-shortcut {
+  background: #c62828;
 }
 
 /* legacy compat */
@@ -700,13 +751,312 @@ h2 {
 }
 
 /* =======================================================
-   Responsive
+   Responsive — Desktop large (1300px+)
    ======================================================= */
-@media (min-width: 768px) {
-  .exam-page { max-width: 800px; }
-}
 @media (min-width: 1300px) {
   .exam-page { max-width: 1000px; }
+  .exam-layout { max-width: 1200px; }
+}
+
+/* =======================================================
+   Responsive — Desktop (768px – 1299px)
+   ======================================================= */
+@media (min-width: 768px) and (max-width: 1299px) {
+  .exam-page { max-width: 800px; }
+}
+
+/* =======================================================
+   Responsive — Tablet (481px – 768px)
+   ======================================================= */
+@media (max-width: 768px) {
+  body {
+    padding: 1rem 0.75rem;
+  }
+
+  h1 { font-size: 1.35rem; }
+  h2 { font-size: 1.15rem; }
+
+  .container {
+    max-width: 100%;
+    padding: 1.5rem;
+    border-radius: 12px;
+  }
+  .container-wide {
+    max-width: 100%;
+    padding: 1.5rem;
+  }
+
+  .exam-layout {
+    padding: 1rem;
+  }
+  .exam-title { font-size: 1.35rem; }
+
+  .exam-body { flex-direction: column; }
+  .exam-left {
+    padding: 20px;
+    border-radius: 14px;
+  }
+  .exam-right {
+    width: 100%;
+    position: static;
+    max-height: none;
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .question-card {
+    padding: 20px;
+    font-size: 1.05rem;
+  }
+
+  .btn {
+    padding: 0.85rem 1.2rem;
+    font-size: 1rem;
+    min-height: 44px;
+  }
+
+  .action-row {
+    gap: 10px;
+  }
+  .action-row .btn,
+  .action-row button {
+    min-width: 100px;
+  }
+
+  .q-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .help-panel {
+    padding: 16px;
+  }
+  .help-panel li { font-size: 0.95rem; }
+
+  .answer-review-item {
+    padding: 14px;
+  }
+
+  .drop-zone-area {
+    height: 120px;
+  }
+}
+
+/* =======================================================
+   Responsive — Mobile (≤ 480px)
+   ======================================================= */
+@media (max-width: 480px) {
+  body {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  h1 { font-size: 1.2rem; padding-bottom: 0.35rem; }
+  h2 { font-size: 1.05rem; }
+  .subtitle { font-size: 0.9rem; margin-bottom: 1.25rem; }
+
+  .container {
+    padding: 1.25rem;
+    border-radius: 10px;
+  }
+  .container-wide {
+    padding: 1.25rem;
+  }
+
+  .exam-layout {
+    padding: 0.75rem;
+  }
+  .exam-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .exam-title { font-size: 1.2rem; }
+
+  .exam-left {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .exam-right {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .question-card {
+    padding: 16px;
+    font-size: 1rem;
+    line-height: 1.7;
+    border-radius: 10px;
+  }
+
+  .q-badge span {
+    padding: 4px 14px;
+    font-size: 0.9rem;
+  }
+
+  .btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    border-radius: 10px;
+    min-height: 42px;
+  }
+
+  .action-row {
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .action-row .btn,
+  .action-row button {
+    min-width: 90px;
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .q-nav-row {
+    gap: 8px;
+  }
+  .q-counter { font-size: 0.85rem; }
+
+  .q-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .grid-btn {
+    padding: 6px 2px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+  }
+
+  .btn-speaker {
+    width: 40px;
+    height: 40px;
+    top: 10px;
+    right: 10px;
+  }
+  .speaker-icon { width: 22px; height: 22px; }
+  .speaker-shortcut {
+    width: 16px; height: 16px; line-height: 16px;
+    font-size: 0.55rem;
+    bottom: -4px; right: -4px;
+  }
+
+  .help-panel {
+    padding: 14px;
+    border-radius: 10px;
+  }
+  .help-panel li { font-size: 0.9rem; margin-bottom: 6px; }
+  .help-panel kbd { padding: 1px 5px; font-size: 0.85rem; }
+
+  .status-bar {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .speed-indicator {
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    top: 10px;
+    right: 10px;
+  }
+
+  .recording-indicator {
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    border-radius: 10px;
+  }
+
+  .answer-box {
+    padding: 14px;
+    font-size: 1rem;
+    border-radius: 10px;
+  }
+  .diagram-warning {
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    border-radius: 10px;
+  }
+
+  .error-box {
+    padding: 12px;
+    font-size: 0.95rem;
+    border-radius: 10px;
+  }
+
+  .drop-zone-area {
+    height: 100px;
+    border-radius: 10px;
+  }
+  .drop-zone-area .drop-icon { font-size: 24px; }
+
+  .file-input-accessible {
+    padding: 10px;
+    font-size: 0.95rem;
+  }
+  .file-help { font-size: 0.8rem; }
+  .file-name { font-size: 0.9rem; }
+
+  .ocr-preview {
+    padding: 14px;
+    max-height: 300px;
+    border-radius: 10px;
+  }
+  .ocr-preview pre { font-size: 0.85rem; }
+
+  .completion-summary {
+    padding: 16px;
+    border-radius: 10px;
+  }
+  .completion-stat { font-size: 1.05rem; }
+
+  .answer-review-item {
+    padding: 12px;
+    border-radius: 10px;
+  }
+  .answer-review-item h3 { font-size: 0.95rem; }
+
+  .progress-bar { height: 10px; }
+  .progress-text { font-size: 0.8rem; }
+
+  .nav-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+}
+
+/* =======================================================
+   Responsive — Very small screens (≤ 360px)
+   ======================================================= */
+@media (max-width: 360px) {
+  body { padding: 0.5rem; }
+
+  .container, .container-wide {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+
+  h1 { font-size: 1.1rem; }
+
+  .btn {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .exam-left, .exam-right {
+    padding: 12px;
+  }
+
+  .question-card {
+    padding: 12px;
+    font-size: 0.95rem;
+  }
+
+  .q-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .action-row .btn,
+  .action-row button {
+    flex: 1 1 100%;
+  }
 }
 
 /* =======================================================
