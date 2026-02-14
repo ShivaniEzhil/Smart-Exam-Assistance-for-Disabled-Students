@@ -10,22 +10,24 @@
 
   <a href="#main-content" class="skip-link">Skip to main content</a>
 
-  <main id="main-content" class="exam-layout" role="main">
+  <main id="main-content" class="exam-layout voice-exam-page" role="main">
 
     <!-- ===================== TOP BAR ===================== -->
-    <div class="exam-topbar">
+    <div class="exam-topbar voice-exam-topbar">
       <a href="{{ url_for('student_dashboard') }}" class="topbar-link" aria-label="Back to my exams">← My Exams</a>
+      <span class="voice-exam-topbar-title" aria-hidden="true">{{ subject }}</span>
       <button class="btn btn-help" onclick="toggleHelp()" aria-label="Help (H)">Help (H)</button>
     </div>
 
-    <!-- ===================== HEADER ===================== -->
-    <h1 class="exam-title">{{ subject }}</h1>
-    <div id="status-bar" class="status-bar" role="status" aria-live="polite" aria-atomic="true">
-      Loading exam…
+    <!-- ===================== HEADER (status only; subject is in topbar) ===================== -->
+    <div class="voice-exam-header">
+      <div id="status-bar" class="status-bar voice-exam-status" role="status" aria-live="polite" aria-atomic="true">
+        Loading exam…
+      </div>
     </div>
 
     <!-- ===================== HELP PANEL ===================== -->
-    <div id="help-panel" class="help-panel" role="dialog" aria-label="Voice commands and keyboard shortcuts" hidden>
+    <div id="help-panel" class="help-panel voice-exam-help" role="dialog" aria-label="Voice commands and keyboard shortcuts" hidden>
       <h2>Voice Commands</h2>
       <p style="margin:0 0 12px;font-size:0.95rem;opacity:0.85;">Just speak any command after the question is read:</p>
       <ul>
@@ -57,9 +59,8 @@
 
     <!-- ===================== MAIN CONTENT AREA ===================== -->
     <div class="exam-body">
-
       <!-- LEFT: Question card -->
-      <div class="exam-left">
+      <div class="exam-left voice-exam-content">
 
         <!-- Question number badge -->
         <div id="q-badge" class="q-badge" hidden>
@@ -109,31 +110,31 @@
 
         <!-- Navigation row: Previous / counter / Next -->
         <div id="nav-row" class="q-nav-row" hidden>
-          <button id="btn-prev" class="btn btn-nav" aria-label="Previous question (P)">← Previous</button>
+          <button id="btn-prev" class="btn btn-nav vex-btn-prev" aria-label="Previous question (P)">← Previous</button>
           <span id="q-counter" class="q-counter">Question 1 of 60</span>
-          <button id="btn-next" class="btn btn-nav" aria-label="Next question (N)">Next →</button>
+          <button id="btn-next" class="btn btn-nav vex-btn-next" aria-label="Next question (N)">Next →</button>
         </div>
 
         <!-- Action buttons -->
-        <div id="btns-instr" class="action-row" hidden>
-          <button id="btn-read-instr" class="btn btn-read">Read Instructions</button>
-          <button id="btn-start" class="btn btn-answer">Start Questions</button>
+        <div id="btns-instr" class="action-row voice-exam-actions-instr" hidden>
+          <button id="btn-read-instr" class="btn voice-exam-btn-read">Read Instructions</button>
+          <button id="btn-start" class="btn voice-exam-btn-start">Start Questions</button>
         </div>
 
         <div id="btns-main" class="action-row" hidden>
-          <button id="btn-repeat" class="btn btn-read" aria-label="Repeat (R)">Repeat</button>
-          <button id="btn-answer" class="btn btn-answer" aria-label="Answer (A)">Answer</button>
-          <button id="btn-add-more" class="btn btn-add-more" aria-label="Add More (D)" hidden>+ Add More</button>
-          <button id="btn-clear" class="btn btn-clear" aria-label="Clear (C)" hidden>Clear</button>
+          <button id="btn-repeat" class="btn btn-read vex-btn-repeat" aria-label="Repeat (R)">Repeat</button>
+          <button id="btn-answer" class="btn btn-answer vex-btn-answer" aria-label="Answer (A)">Answer</button>
+          <button id="btn-add-more" class="btn btn-add-more vex-btn-add-more" aria-label="Add More (D)" hidden>+ Add More</button>
+          <button id="btn-clear" class="btn btn-clear vex-btn-clear" aria-label="Clear (C)" hidden>Clear</button>
         </div>
 
         <div id="btns-submit" class="action-row" hidden>
-          <button id="btn-submit-next" class="btn btn-submit" aria-label="Submit & Next (Enter)">Submit &amp; Next</button>
+          <button id="btn-submit-next" class="btn btn-submit vex-btn-submit" aria-label="Submit & Next (Enter)">Submit &amp; Next</button>
         </div>
 
         <div id="btns-done" class="action-row" hidden>
-          <button id="btn-review" class="btn btn-read" aria-label="Review (V)">Review Answers</button>
-          <button id="btn-finish" class="btn btn-submit" aria-label="Finish (Enter)">Finish Exam</button>
+          <button id="btn-review" class="btn btn-read vex-btn-repeat" aria-label="Review (V)">Review Answers</button>
+          <button id="btn-finish" class="btn btn-submit vex-btn-submit" aria-label="Finish (Enter)">Finish Exam</button>
         </div>
       </div>
 
