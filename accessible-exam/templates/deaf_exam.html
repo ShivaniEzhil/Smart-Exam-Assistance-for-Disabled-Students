@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deaf Mode Exam — Accessible Exam Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* Modern Deaf Mode Styles — Enhanced */
+        :root {
+            --primary: #5e35b1;
+            --primary-light: #ede7f6;
+            --primary-dark: #4527a0;
+            --success: #2e7d32;
+            --danger: #c62828;
+            --gray-100: #f5f5f5;
+            --gray-300: #e0e0e0;
+            --gray-800: #424242;
+            --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --card-shadow-hover: 0 8px 30px rgba(94, 53, 177, 0.12);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: linear-gradient(180deg, #fff 0%, #faf8fc 100%);
+            border-radius: 20px;
+            width: 95%;
+            max-width: 1100px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(94, 53, 177, 0.06);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 95vh;
+            animation: slideUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 22px 28px;
+            background: white;
+            border-bottom: 1px solid var(--gray-300);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .modal-body {
+            padding: 28px;
+            background: linear-gradient(180deg, #faf8fc 0%, #f5f2f8 100%);
+            overflow-y: auto;
+        }
+
+        .question-preview {
+            font-size: 1.1rem;
+            color: #333;
+            line-height: 1.55;
+            margin-bottom: 26px;
+            padding: 18px 20px;
+            background: white;
+            border-left: 4px solid var(--primary);
+            border-radius: 0 12px 12px 0;
+            box-shadow: var(--card-shadow);
+        }
+
+        .answer-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.15fr;
+            gap: 28px;
+        }
+
+        @media (max-width: 768px) {
+            .answer-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .mode-card {
+            background: white;
+            border: 1px solid var(--gray-300);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: box-shadow 0.25s, border-color 0.25s;
+            position: relative;
+            box-shadow: var(--card-shadow);
+        }
+
+        .mode-card:hover {
+            border-color: rgba(94, 53, 177, 0.35);
+            box-shadow: var(--card-shadow-hover);
+        }
+
+        .mode-card:nth-child(2) {
+            min-height: 520px;
+        }
+
+        .mode-title {
+            margin: 0 0 18px 0;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Type Input */
+        .type-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        textarea.answer-input {
+            width: 100%;
+            min-height: 120px;
+            height: 140px;
+            padding: 18px;
+            border: 1px solid var(--gray-300);
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 1.1rem;
+            resize: vertical;
+            outline: none;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        textarea.answer-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .btn-clear-inline {
+            background: #ffebee;
+            border: 1px solid #ffcdd2;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: #d32f2f;
+            transition: all 0.2s;
+        }
+
+        .btn-clear-inline:hover {
+            background: #ffcdd2;
+            transform: scale(1.02);
+        }
+
+        .clear-suggestions-below {
+            margin-top: 12px;
+            flex-shrink: 0;
+        }
+
+        .suggestions-box {
+            margin-top: 10px;
+            min-height: 60px;
+        }
+
+        .suggestions-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin: 0 0 6px 0;
+        }
+
+        .type-answer-card {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Camera Input — Larger, more prominent */
+        .camera-wrapper {
+            position: relative;
+            background: linear-gradient(145deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 14px;
+            overflow: hidden;
+            min-height: 380px;
+            height: 380px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 12px 28px rgba(0,0,0,0.25);
+        }
+
+        video#cam-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .sign-overlay {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 24px;
+            font-size: 1.05rem;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sign-val {
+            color: #ffd54f;
+            font-weight: 700;
+            font-size: 1.3rem;
+        }
+
+        .capture-buttons-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        .capture-buttons-row .btn-capture {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .btn-capture {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 14px rgba(94, 53, 177, 0.35);
+        }
+
+        .btn-capture:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(94, 53, 177, 0.45);
+        }
+
+        .btn-capture:disabled {
+            background: var(--gray-300);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+            opacity: 0.8;
+        }
+
+        .btn-capture.recording {
+            background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
+            pointer-events: none;
+            animation: pulse-rec 1.2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-rec {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.4); }
+            50%  { box-shadow: 0 0 0 8px rgba(198, 40, 40, 0); }
+        }
+
+        /* Footer */
+        .modal-footer {
+            padding: 20px 25px;
+            border-top: 1px solid var(--gray-300);
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            background: white;
+        }
+
+        .btn-cancel {
+            background: var(--gray-100);
+            color: var(--gray-800);
+            border: 1px solid var(--gray-300);
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-cancel:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-save {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            /* ENHANCED PADDING */
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(46, 125, 50, 0.3);
+        }
+
+        .btn-save:hover {
+            background: #1b5e20;
+            transform: translateY(-2px);
+        }
+
+        /* Global buttons */
+        .btn-main-answer {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 40px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(106, 27, 154, 0.3);
+            transition: all 0.3s;
+        }
+
+        .btn-main-answer:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(106, 27, 154, 0.45);
+        }
+
+        .start-cam-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(94, 53, 177, 0.9) 0%, rgba(69, 39, 160, 0.95) 100%);
+            border: 2px solid rgba(255,255,255,0.4);
+            color: white;
+            padding: 18px 36px;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 10;
+            font-size: 1.2rem;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(94, 53, 177, 0.4);
+            white-space: nowrap;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .start-cam-btn:hover {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            transform: translate(-50%, -50%) scale(1.08);
+            box-shadow: 0 12px 32px rgba(94, 53, 177, 0.5);
+        }
+
+        .btn-record-word {
+            background: #1565c0;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .btn-record-word:hover:not(:disabled) {
+            background: #0d47a1;
+        }
+        .btn-record-word:disabled {
+            background: var(--gray-300);
+            cursor: not-allowed;
+        }
+        .btn-record-word.recording {
+            background: #c62828;
+            pointer-events: none;
+        }
+        .word-status {
+            font-size: 0.95rem;
+            color: #555;
+            margin-top: 10px;
+            min-height: 1.4em;
+        }
+
+        /* Spell mode: letter-by-letter + word suggestions */
+        .spell-bar {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+            padding: 14px;
+            background: linear-gradient(135deg, #f8f4fc 0%, #ede7f6 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(94, 53, 177, 0.2);
+        }
+        .spell-current {
+            font-size: 1.05rem;
+            color: #555;
+            min-width: 200px;
+            flex: 1;
+        }
+        .spell-current strong {
+            color: var(--primary);
+            font-size: 1.25rem;
+        }
+        .btn-spell {
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: 1px solid var(--gray-300);
+            background: white;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .btn-spell:hover:not(:disabled) {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .btn-spell:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-spell.insert { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border-color: var(--primary); }
+        .btn-spell.insert:hover:not(:disabled) { filter: brightness(1.1); }
+        .suggestions-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            min-height: 40px;
+            padding: 12px;
+            background: var(--primary-light);
+            border-radius: 12px;
+            border: 1px solid rgba(94, 53, 177, 0.15);
+        }
+        .suggestion-chip {
+            background: white;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 10px 18px;
+            border-radius: 24px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(94, 53, 177, 0.1);
+        }
+        .suggestion-chip:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(94, 53, 177, 0.25);
+        }
+    </style>
+</head>
+
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <main id="main-content" class="exam-layout" role="main">
+        <!-- TOP BAR -->
+        <div class="exam-topbar">
+            <a href="{{ url_for('student_dashboard') }}" class="topbar-link">← Back to Dashboard</a>
+            <div style="font-weight:bold; color:#666;">Deaf & Mute Mode</div>
+        </div>
+
+        <!-- TITLE -->
+        <h1 class="exam-title text-center">{{ subject }}</h1>
+
+        <div class="exam-body">
+            <!-- LEFT AREA -->
+            <div class="exam-left">
+                <div id="q-badge" class="q-badge"><span id="q-badge-text">Question 1</span></div>
+                <div id="question-box" class="question-card">
+                    <p id="question-text" style="font-size: 1.25rem; line-height:1.6;">Loading...</p>
+                </div>
+
+                <div id="answer-box" class="answer-box" hidden>
+                    <div class="answer-header"><strong>Your Answer:</strong></div>
+                    <p id="answer-text" style="white-space: pre-wrap; color: #2e7d32; font-size:1.1rem;"></p>
+                </div>
+
+                <!-- Footer Nav -->
+                <div class="action-row" style="margin-top: 25px;">
+                    <button id="btn-prev" class="btn btn-nav">← Previous</button>
+                    <span id="q-counter" class="q-counter"
+                        style="background:#f5f5f5; padding:8px 16px; border-radius:20px; font-weight:500;">1 / 10</span>
+                    <button id="btn-next" class="btn btn-nav">Next →</button>
+                </div>
+
+                <div class="action-row" style="justify-content: center; margin-top: 50px;">
+                    <button id="btn-answer" class="btn-main-answer">✍️ Answer Question</button>
+                    <button id="btn-finish" class="btn btn-submit"
+                        style="display:none; padding: 15px 30px; font-size:1.1rem;">Finish Exam</button>
+                </div>
+            </div>
+
+            <!-- RIGHT GRID -->
+            <div class="exam-right">
+                <h3 class="grid-title">Question Navigator</h3>
+                <div id="q-grid" class="q-grid"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL -->
+    <div id="answer-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Answer Question <span id="modal-q-num"></span></h3>
+                <button onclick="closeModal()"
+                    style="background:none; border:none; font-size:2rem; cursor:pointer; color:#666; line-height:1;">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="question-preview" id="modal-q-text"></div>
+
+                <div class="answer-grid">
+                    <!-- Typing Section -->
+                    <div class="mode-card type-answer-card">
+                        <div class="mode-title"><span>⌨️</span> Type Answer</div>
+                        <div class="type-wrapper">
+                            <textarea id="type-input" class="answer-input"
+                                placeholder="Type your answer here..."></textarea>
+                        </div>
+                        <div class="clear-suggestions-below">
+                            <button class="btn-clear-inline" onclick="clearTyped()">Clear Text</button>
+                            <div class="suggestions-box">
+                                <p class="suggestions-label"><strong>Suggestions</strong> (tap to insert):</p>
+                                <div class="suggestions-row" id="suggestions-row" aria-live="polite"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sign Section: turn on video, then one capture for word or letter -->
+                    <div class="mode-card">
+                        <div class="mode-title"><span>👋</span> Sign Language (Camera)</div>
+                        <div class="sign-instructions" style="font-size:0.9rem; color:#555; margin-bottom:14px; padding:12px 14px; background:#f5f2f8; border-radius:10px; border-left:3px solid var(--primary); line-height:1.5;">
+                            <strong>1.</strong> Use <em>Letter</em> or <em>Number</em> to capture a sign (2.5s); it’s added to Current and suggestions update. <strong>2.</strong> Or sign and click <em>+ Letter</em>. <strong>3.</strong> Tap a suggestion to insert.
+                        </div>
+                        <div class="camera-wrapper">
+                            <video id="cam-video" autoplay playsinline muted></video>
+                            <button id="btn-start-cam" class="start-cam-btn" onclick="startCamera()">Turn On Camera</button>
+                            <div class="sign-overlay">
+                                <span>Detected:</span>
+                                <span class="sign-val" id="sign-val">Turn on camera</span>
+                            </div>
+                        </div>
+                        <div class="spell-bar">
+                            <span class="spell-current">Current: <strong id="spell-current-word">—</strong></span>
+                            <button class="btn-spell insert" id="btn-insert-letter" onclick="insertLetter()" disabled>+ Letter</button>
+                            <button class="btn-spell" id="btn-spell-space" onclick="addSpace()">Space</button>
+                            <button class="btn-spell" id="btn-spell-back" onclick="spellBackspace()">⌫</button>
+                        </div>
+                        <p style="font-size:0.85rem; color:#888; margin-top:8px;">Or sign and capture (2.5s):</p>
+                        <p id="word-model-status" style="font-size:0.8rem; color:#888; margin-bottom:4px;" aria-live="polite"></p>
+                        <div class="capture-buttons-row">
+                            <button class="btn-capture btn-capture-letter" id="btn-capture-letter" onclick="captureSign('letter')" type="button" disabled>
+                                <span>🔤</span> Letter
+                            </button>
+                            <button class="btn-capture btn-capture-number" id="btn-capture-number" onclick="captureSign('number')" type="button" disabled>
+                                <span>🔢</span> Number
+                            </button>
+                        </div>
+                        <p id="capture-status" class="word-status" aria-live="polite"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="btn-save" onclick="confirmAnswer()">Save Answer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Canvas for capturing frames -->
+    <canvas id="hidden-canvas" style="display:none;"></canvas>
+
+    <script>
+        var QUESTIONS = {{ questions | tojson }};
+        var ANSWERS = {{ answers | tojson }};
+        var TOTAL = QUESTIONS.length;
+        var qIdx = 0;
+
+        // Element Refs
+        const els = {
+            qText: document.getElementById('question-text'),
+            badge: document.getElementById('q-badge-text'),
+            counter: document.getElementById('q-counter'),
+            ansBox: document.getElementById('answer-box'),
+            ansText: document.getElementById('answer-text'),
+            grid: document.getElementById('q-grid'),
+            btnPrev: document.getElementById('btn-prev'),
+            btnNext: document.getElementById('btn-next'),
+            btnFin: document.getElementById('btn-finish'),
+            modal: document.getElementById('answer-modal'),
+            mQNum: document.getElementById('modal-q-num'),
+            mQText: document.getElementById('modal-q-text'),
+            typeIn: document.getElementById('type-input'),
+            video: document.getElementById('cam-video'),
+            canvas: document.getElementById('hidden-canvas'),
+            signVal: document.getElementById('sign-val'),
+            startCamBtn: document.getElementById('btn-start-cam'),
+            btnCaptureLetter: document.getElementById('btn-capture-letter'),
+            btnCaptureNumber: document.getElementById('btn-capture-number'),
+            captureStatus: document.getElementById('capture-status'),
+            wordModelStatus: document.getElementById('word-model-status'),
+            spellCurrent: document.getElementById('spell-current-word'),
+            btnInsertLetter: document.getElementById('btn-insert-letter'),
+            suggestionsRow: document.getElementById('suggestions-row')
+        };
+
+        var stream = null;
+        var wordModelLoaded = false;
+        var gestureInterval = null;
+        var spellCurrentWord = '';
+        var gestureBuffer = [];
+        var GESTURE_BUFFER_SIZE = 3;
+        var lastAutoAddedLetter = '';  // reset when no letter; add only when letter changes
+
+        function init() {
+            buildGrid();
+            showQ(0);
+            if (els.typeIn) {
+                els.typeIn.addEventListener('input', function() {
+                    if (!spellCurrentWord) updateSpellUI();
+                });
+            }
+        }
+
+        /* --- Navigation & Display --- */
+        function showQ(idx) {
+            if (idx < 0 || idx >= TOTAL) return;
+            qIdx = idx;
+            var q = QUESTIONS[qIdx];
+            var ans = ANSWERS[String(qIdx)];
+
+            els.qText.innerText = q.text;
+            els.badge.innerText = "Question " + q.id;
+            els.counter.innerText = (qIdx + 1) + " / " + TOTAL;
+
+            if (ans) {
+                els.ansBox.hidden = false;
+                els.ansText.innerText = ans;
+            } else {
+                els.ansBox.hidden = true;
+            }
+
+            els.btnPrev.style.visibility = (qIdx > 0) ? 'visible' : 'hidden';
+            if (qIdx == TOTAL - 1) {
+                els.btnNext.style.display = 'none';
+                els.btnFin.style.display = 'inline-block';
+            } else {
+                els.btnNext.style.display = 'inline-block';
+                els.btnFin.style.display = 'none';
+            }
+            updateGrid();
+        }
+
+        function buildGrid() {
+            els.grid.innerHTML = '';
+            QUESTIONS.forEach((q, i) => {
+                var btn = document.createElement('button');
+                btn.className = 'grid-btn';
+                btn.innerText = q.id;
+                btn.onclick = () => showQ(i);
+                els.grid.appendChild(btn);
+            });
+            updateGrid();
+        }
+
+        function updateGrid() {
+            var btns = els.grid.querySelectorAll('.grid-btn');
+            btns.forEach((b, i) => {
+                b.className = 'grid-btn';
+                if (i === qIdx) b.classList.add('grid-current');
+                if (ANSWERS[String(i)]) b.classList.add('grid-answered');
+            });
+        }
+
+        els.btnPrev.onclick = () => showQ(qIdx - 1);
+        els.btnNext.onclick = () => showQ(qIdx + 1);
+        els.btnFin.onclick = () => window.location.href = '/completed';
+        document.getElementById('btn-answer').onclick = openModal;
+
+        /* --- Modal --- */
+        function openModal() {
+            els.modal.style.display = 'flex';
+            var qTextRaw = QUESTIONS[qIdx].text;
+            els.mQNum.innerText = QUESTIONS[qIdx].id;
+            els.mQText.innerText = qTextRaw;
+            els.typeIn.value = ANSWERS[String(qIdx)] || "";
+            spellCurrentWord = '';
+            lastAutoAddedLetter = '';
+            updateSpellUI();
+
+            // Always show camera for both MCQ and long answer (finger-spelling A–Z, 1–9)
+            var camCard = document.querySelector('.mode-card:nth-child(2)');
+            var grid = document.querySelector('.answer-grid');
+            if (camCard) camCard.style.display = 'flex';
+            grid.style.gridTemplateColumns = '1fr 1fr';
+            els.startCamBtn.style.display = 'block';
+            els.video.srcObject = null;
+        }
+
+        function closeModal() {
+            els.modal.style.display = 'none';
+            stopCamera();
+        }
+
+        function clearTyped() {
+            els.typeIn.value = "";
+            els.typeIn.focus();
+            spellCurrentWord = '';
+            lastAutoAddedLetter = '';
+            updateSpellUI();
+        }
+
+        function updateSpellUI() {
+            if (els.spellCurrent) els.spellCurrent.textContent = spellCurrentWord || '—';
+            if (!els.suggestionsRow) return;
+
+            var url;
+            if (spellCurrentWord) {
+                url = '/word_suggestions?prefix=' + encodeURIComponent(spellCurrentWord.toLowerCase());
+            } else {
+                var text = (els.typeIn.value || '').trim();
+                var words = text.split(/\s+/).filter(Boolean);
+                if (words.length >= 1) {
+                    var context = words.slice(-3).join(' ');
+                    url = '/word_suggestions?context=' + encodeURIComponent(context);
+                } else {
+                    els.suggestionsRow.innerHTML = '';
+                    return;
+                }
+            }
+
+            fetch(url)
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    var suggestions = d.suggestions || [];
+                    els.suggestionsRow.innerHTML = '';
+                    suggestions.forEach(function(word) {
+                        var chip = document.createElement('button');
+                        chip.className = 'suggestion-chip';
+                        chip.textContent = word;
+                        chip.type = 'button';
+                        chip.onclick = function() { insertSuggestion(word); };
+                        els.suggestionsRow.appendChild(chip);
+                    });
+                })
+                .catch(function() { els.suggestionsRow.innerHTML = ''; });
+        }
+
+        function insertSuggestion(word) {
+            var curr = els.typeIn.value;
+            els.typeIn.value = curr ? (curr + ' ' + word) : word;
+            spellCurrentWord = '';
+            updateSpellUI();
+            if (els.captureStatus) els.captureStatus.textContent = 'Inserted: "' + word + '"';
+        }
+
+        function insertLetter() {
+            if (!stream || !els.video.videoWidth || !els.canvas) return;
+            var btn = els.btnInsertLetter;
+            if (btn) btn.disabled = true;
+            if (els.captureStatus) els.captureStatus.textContent = 'Capturing... hold sign steady';
+            els.canvas.width = els.video.videoWidth;
+            els.canvas.height = els.video.videoHeight;
+            var ctx = els.canvas.getContext('2d');
+            var frames = [];
+            var count = 0;
+            var maxFrames = 5;
+            var interval = setInterval(function() {
+                ctx.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
+                frames.push(els.canvas.toDataURL('image/jpeg', 0.6));
+                count++;
+                if (count >= maxFrames) {
+                    clearInterval(interval);
+                    fetch('/process_gesture', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ images: frames })
+                    })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            var g = (data.gesture || '').trim();
+                            var conf = (data.confidence || 0) * 100;
+                            var confStr = conf > 0 ? ' (' + Math.round(conf) + '%)' : '';
+                            if (!g || g === 'Model Not Loaded') {
+                                if (els.captureStatus) els.captureStatus.textContent = 'No clear sign. Hold sign steady, good lighting. Retrain with more data if needed.';
+                            } else if (/^[A-Za-z]$/.test(g)) {
+                                spellCurrentWord += g.toLowerCase();
+                                updateSpellUI();
+                                if (els.captureStatus) els.captureStatus.textContent = 'Added: ' + g + confStr + (conf < 25 && conf > 0 ? ' — low confidence, retrain for better accuracy' : '');
+                            } else if (/^[0-9]$/.test(g)) {
+                                if (els.captureStatus) els.captureStatus.textContent = 'Use Number button to add digits. + Letter accepts letters only.';
+                            } else {
+                                if (els.captureStatus) els.captureStatus.textContent = 'Unrecognized. Try A–Z (use Number button for digits).';
+                            }
+                            if (btn) btn.disabled = false;
+                        })
+                        .catch(function() {
+                            if (els.captureStatus) els.captureStatus.textContent = 'Request failed. Try again.';
+                            if (btn) btn.disabled = false;
+                        });
+                }
+            }, 80);
+        }
+
+        function addSpace() {
+            if (spellCurrentWord) {
+                var curr = els.typeIn.value;
+                els.typeIn.value = curr ? (curr + ' ' + spellCurrentWord) : spellCurrentWord;
+                spellCurrentWord = '';
+                if (els.captureStatus) els.captureStatus.textContent = 'Added word.';
+            } else {
+                var curr = els.typeIn.value;
+                if (curr && !curr.endsWith(' ')) els.typeIn.value = curr + ' ';
+            }
+            updateSpellUI();
+        }
+
+        function spellBackspace() {
+            if (spellCurrentWord.length > 0) {
+                spellCurrentWord = spellCurrentWord.slice(0, -1);
+                updateSpellUI();
+            }
+        }
+
+        function confirmAnswer() {
+            var val = els.typeIn.value.trim();
+            if (!val) { alert("Please enter an answer."); return; }
+            ANSWERS[String(qIdx)] = val;
+
+            fetch('/submit_deaf_answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question_id: QUESTIONS[qIdx].id, answer: val })
+            }).then(res => res.json()).then(d => {
+                if (d.status === 'success') {
+                    closeModal();
+                    showQ(qIdx);
+                }
+            });
+        }
+
+        /* --- Camera & Gestures (Client Side + API) --- */
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                els.video.srcObject = stream;
+                els.startCamBtn.style.display = 'none';
+                if (els.btnCaptureLetter) els.btnCaptureLetter.disabled = false;
+                if (els.btnCaptureNumber) els.btnCaptureNumber.disabled = false;
+                if (els.btnInsertLetter) els.btnInsertLetter.disabled = false;
+
+                // Wait for video to have dimensions before starting gesture loop
+                if (gestureInterval) clearInterval(gestureInterval);
+                function startLoop() {
+                    if (els.video.videoWidth > 0) {
+                        gestureInterval = setInterval(processFrame, 500);
+                    } else {
+                        setTimeout(startLoop, 100);
+                    }
+                }
+                els.video.onloadedmetadata = startLoop;
+                if (els.video.videoWidth > 0) startLoop();
+                else setTimeout(startLoop, 300);
+                fetch('/sign_models_status')
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        wordModelLoaded = d.word_model_loaded === true;
+                        if (els.wordModelStatus) {
+                            if (wordModelLoaded) {
+                                els.wordModelStatus.textContent = '✓ Word + letter recognition enabled.';
+                                els.wordModelStatus.style.color = '#2e7d32';
+                            } else {
+                                els.wordModelStatus.textContent = 'Only letters/numbers for now. To enable words: run WLASL extraction then train_word_model.py (see sign_language_training/README_WORD_MODEL.md).';
+                                els.wordModelStatus.style.color = '#c62828';
+                            }
+                        }
+                    })
+                    .catch(function () {
+                        if (els.wordModelStatus) els.wordModelStatus.textContent = '';
+                    });
+            } catch (err) {
+                alert("Could not access camera: " + err.message);
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            if (gestureInterval) clearInterval(gestureInterval);
+            gestureBuffer = [];
+            if (els.btnCaptureLetter) els.btnCaptureLetter.disabled = true;
+            if (els.btnCaptureNumber) els.btnCaptureNumber.disabled = true;
+            if (els.btnInsertLetter) els.btnInsertLetter.disabled = true;
+            if (els.captureStatus) els.captureStatus.textContent = '';
+            spellCurrentWord = '';
+            lastAutoAddedLetter = '';
+            updateSpellUI();
+        }
+
+        function processFrame() {
+            if (!stream || !els.video.videoWidth || !els.video.videoHeight) return;
+
+            var w = els.video.videoWidth;
+            var h = els.video.videoHeight;
+            els.canvas.width = w;
+            els.canvas.height = h;
+            var ctx = els.canvas.getContext('2d');
+            ctx.drawImage(els.video, 0, 0, w, h);
+
+            var dataURL = els.canvas.toDataURL('image/jpeg', 0.6);
+
+            fetch('/process_gesture', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: dataURL })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    var g = (data.gesture || '').toString().trim();
+                    if (g.length > 1) g = g.charAt(0);
+                    gestureBuffer.push(g || '');
+                    if (gestureBuffer.length > GESTURE_BUFFER_SIZE) gestureBuffer.shift();
+                    var counts = {};
+                    gestureBuffer.forEach(function(x) { counts[x] = (counts[x] || 0) + 1; });
+                    var best = '', bestCount = 0;
+                    for (var k in counts) {
+                        // Only recommend letters in live preview; numbers only when user clicks Number
+                        // Use >= 1 so letters get added to Current even with single detection
+                        if (k && /^[A-Za-z]$/.test(k) && counts[k] >= 1 && counts[k] > bestCount) {
+                            best = k;
+                            bestCount = counts[k];
+                        }
+                    }
+                    if (best) {
+                        els.signVal.innerText = best;
+                        els.signVal.style.color = '#fdd835';
+                        // Auto-add predicted letter to Current and refresh suggestions
+                        var bestNorm = best.toUpperCase();
+                        if (lastAutoAddedLetter.toUpperCase() !== bestNorm) {
+                            spellCurrentWord += best.toLowerCase();
+                            lastAutoAddedLetter = best;
+                            if (els.spellCurrent) els.spellCurrent.textContent = spellCurrentWord || '—';
+                            updateSpellUI();
+                            if (els.captureStatus) els.captureStatus.textContent = 'Added: ' + best + ' — suggestions updated.';
+                        }
+                    } else {
+                        els.signVal.innerText = "Hold sign steady";
+                        els.signVal.style.color = '#aaa';
+                        lastAutoAddedLetter = '';  // reset so next letter can be added
+                    }
+                })
+                .catch(function (err) {
+                    console.error(err);
+                    els.signVal.innerText = "Error";
+                });
+        }
+
+        function captureSign(mode) {
+            if (!stream || !els.video.videoWidth) {
+                if (els.captureStatus) els.captureStatus.textContent = 'Turn on camera first.';
+                return;
+            }
+            var btnLetter = els.btnCaptureLetter;
+            var btnNumber = els.btnCaptureNumber;
+            var status = els.captureStatus;
+            btnLetter.disabled = true;
+            btnNumber.disabled = true;
+            if (mode === 'letter') btnLetter.classList.add('recording');
+            else btnNumber.classList.add('recording');
+            status.textContent = mode === 'letter' ? 'Recording... Sign a letter (A–Z).' : 'Recording... Sign a number (0–9).';
+
+            var frames = [];
+            var captureInterval = 100;
+            var totalMs = 2500;
+            var elapsed = 0;
+            els.canvas.width = els.video.videoWidth;
+            els.canvas.height = els.video.videoHeight;
+            var ctx = els.canvas.getContext('2d');
+
+            var intervalId = setInterval(function () {
+                ctx.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
+                frames.push(els.canvas.toDataURL('image/jpeg', 0.6));
+
+                if (elapsed >= totalMs) {
+                    clearInterval(intervalId);
+                    btnLetter.classList.remove('recording');
+                    btnNumber.classList.remove('recording');
+                    status.textContent = 'Recognizing...';
+                    fetch('/process_sign', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ frames: frames, mode: mode })
+                    })
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            var s = data.sign;
+                            var src = data.source || '';
+                            if (s) {
+                                if (src === 'number') {
+                                    els.typeIn.value = (els.typeIn.value || '') + s;
+                                    updateSpellUI();
+                                    status.textContent = 'Added number: ' + s + ' (inserted directly into answer).';
+                                } else {
+                                    spellCurrentWord += s.toLowerCase();
+                                    updateSpellUI();
+                                    status.textContent = 'Added letter: ' + s + ' — suggestions updated.';
+                                }
+                            } else {
+                                status.textContent = mode === 'letter' ? 'No letter detected. Try again.' : 'No number detected. Try again.';
+                            }
+                            btnLetter.disabled = false;
+                            btnNumber.disabled = false;
+                        })
+                        .catch(function () {
+                            status.textContent = 'Request failed. Try again.';
+                            btnLetter.disabled = false;
+                            btnNumber.disabled = false;
+                        });
+                    return;
+                }
+                elapsed += captureInterval;
+            }, captureInterval);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
