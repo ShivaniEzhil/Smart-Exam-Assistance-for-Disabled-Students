@@ -3,7 +3,25 @@
 # Web framework
 flask>=2.0.0
 
-# OCR (extract text from question paper images)
+# Computer vision (sign language gesture detection)
+opencv-python-headless>=4.5.0,<4.6
+numpy<2
+protobuf<4
+
+# Letter/word training (only if you run train_alphabet_model.py or train_word_model.py)
+scikit-learn>=1.0
+
+# Optional: for CNN letter model (train_alphabet_cnn.py). Skip if you only use action.pkl.
+# pip install tensorflow
+
+# MediaPipe: use mediapipe-silicon on Apple Silicon Macs, mediapipe on other platforms
+mediapipe
+
+# PDF text extraction (question paper)
+pypdf>=3.0
+
+# Image processing / OCR
+Pillow
 pytesseract
 Pillow
 
@@ -22,3 +40,8 @@ pypdf
 #   - Removes the need for PyAudio system dependencies
 #   - Works offline for TTS (browser-native voices)
 # -------------------------------------------------------
+
+# Audio / Speech (for deaf/mute integration features if needed on server side)
+pyttsx3
+SpeechRecognition
+pyaudio

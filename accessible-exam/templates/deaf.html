@@ -1,17 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Exam — Deaf & Mute Mode</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
   <main class="container exam-page">
     <a href="{{ url_for('index') }}" class="back">← Back to mode selection</a>
     <h1>Deaf & Mute Mode</h1>
-    <p class="subtitle">Read questions in text. Answer using sign language (camera). (Step 6: add webcam + gestures)</p>
-    <p class="placeholder">Exam content and sign capture will go here.</p>
+    <p class="subtitle">Read questions in text. Answer using sign language (camera).</p>
+    <a href="{{ url_for('deaf_exam') }}" class="btn btn-deaf">Start Exam</a>
+    <p class="placeholder" style="margin-top:20px;">Ensure your webcam is ready.</p>
   </main>
 </body>
+
 </html>

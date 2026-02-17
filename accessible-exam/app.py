@@ -3,7 +3,7 @@ Accessible Exam Tool — Flask backend
 Teacher/Student login, paper management, and voice exam with OCR + TTS/STT
 """
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, Response
 import pytesseract
 from PIL import Image, ImageEnhance, ImageFilter
 from pypdf import PdfReader
@@ -14,6 +14,16 @@ import uuid
 from datetime import datetime
 from functools import wraps
 from werkzeug.utils import secure_filename
+import cv2
+try:
+    from gesture_model import GestureModel
+except ImportError:
+    GestureModel = None
+try:
+    from word_model import WordModel
+except ImportError:
+    WordModel = None
+
 
 app = Flask(__name__)
 app.secret_key = "accessible-exam-secret-key-change-in-production"
@@ -449,6 +459,9 @@ def start_exam(paper_id):
     session["exam_id"] = student_exam_id
     session["current_paper_subject"] = paper["subject"]
 
+    if session.get("student_mode") == "visual":
+         return redirect(url_for("deaf_exam"))
+    
     return redirect(url_for("blind_exam"))
 
 
@@ -555,6 +568,293 @@ def reset():
 @app.route("/deaf")
 def deaf():
     return render_template("deaf.html")
+
+
+# =====================================================
+# ROUTES — DEAF EXAM (Sign Language Logic)
+# =====================================================
+import base64
+import numpy as np
+
+gesture_recognizer = None
+word_model_recognizer = None
+
+def get_gesture_model():
+    global gesture_recognizer
+    if gesture_recognizer is None and GestureModel:
+        gesture_recognizer = GestureModel()
+    return gesture_recognizer
+
+def get_word_model():
+    global word_model_recognizer
+    if word_model_recognizer is None and WordModel:
+        word_model_recognizer = WordModel()
+        # If word model's hand detector failed to init, reuse gesture model's (same MediaPipe)
+        gm = get_gesture_model()
+        if gm and getattr(gm, "detector", None) and getattr(word_model_recognizer, "detector", None) is None:
+            word_model_recognizer.set_detector(gm.detector)
+    return word_model_recognizer
+
+@app.route('/sign_models_status', methods=['GET'])
+def sign_models_status():
+    """Return whether word model is loaded so the UI can show 'words + letters' vs 'letters only'."""
+    wm = get_word_model()
+    word_loaded = wm is not None and getattr(wm, 'ml_model', None) is not None
+    return jsonify({'word_model_loaded': word_loaded})
+
+
+# Word suggestions for spell-and-autocomplete (keyboard auto-correct style)
+_WORD_SUGGESTIONS_CACHE = None
+_PHRASE_SUGGESTIONS_CACHE = None
+
+def _get_word_suggestions_vocab():
+    global _WORD_SUGGESTIONS_CACHE
+    if _WORD_SUGGESTIONS_CACHE is None:
+        path = os.path.join(DATA_FOLDER, "word_suggestions.json")
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as f:
+                _WORD_SUGGESTIONS_CACHE = json.load(f)
+        else:
+            _WORD_SUGGESTIONS_CACHE = []
+    return _WORD_SUGGESTIONS_CACHE
+
+
+def _get_phrase_suggestions():
+    global _PHRASE_SUGGESTIONS_CACHE
+    if _PHRASE_SUGGESTIONS_CACHE is None:
+        path = os.path.join(DATA_FOLDER, "phrase_suggestions.json")
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as f:
+                _PHRASE_SUGGESTIONS_CACHE = json.load(f)
+        else:
+            _PHRASE_SUGGESTIONS_CACHE = {}
+    return _PHRASE_SUGGESTIONS_CACHE
+
+
+@app.route('/word_suggestions')
+def word_suggestions():
+    """Return suggestions. ?prefix=hel -> prefix match. ?context=help+me -> next-word suggestions."""
+    prefix = (request.args.get("prefix") or "").lower().strip()
+    context = (request.args.get("context") or "").lower().strip()
+
+    # Context-based: last 2-3 words -> suggest next words
+    if context:
+        words = context.split()
+        phrase_data = _get_phrase_suggestions()
+        # Try longest match first: "help me" then "help" then ""
+        for n in range(min(3, len(words)), 0, -1):
+            phrase = " ".join(words[-n:])
+            if phrase in phrase_data:
+                return jsonify({"suggestions": phrase_data[phrase][:8]})
+        return jsonify({"suggestions": []})
+
+    # Prefix-based: current word being spelled
+    if not prefix:
+        return jsonify({"suggestions": []})
+    vocab = _get_word_suggestions_vocab()
+    matches = [w for w in vocab if w.startswith(prefix)][:8]
+    return jsonify({"suggestions": matches})
+
+
+@app.route('/process_gesture', methods=['POST'])
+def process_gesture():
+    """
+    Receives base64 image(s) from the client, detects gestures.
+    Single image: returns one prediction.
+    Multiple images: returns majority vote (more accurate for letter capture).
+    """
+    model = get_gesture_model()
+    if not model:
+        return jsonify({'gesture': None, 'error': 'Model not loaded'})
+
+    data = request.json or {}
+    images_b64 = data.get('images') or ([data.get('image')] if data.get('image') else [])
+
+    if not images_b64:
+        return jsonify({'gesture': None})
+
+    try:
+        frames = []
+        for item in images_b64[:9]:
+            if not item:
+                continue
+            s = item if isinstance(item, str) else ''
+            if ',' in s:
+                s = s.split(',', 1)[1]
+            raw = base64.b64decode(s)
+            arr = np.frombuffer(raw, np.uint8)
+            frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if frame is not None:
+                frames.append(frame)
+
+        if not frames:
+            return jsonify({'gesture': None, 'error': 'Invalid image(s)'})
+
+        if len(frames) >= 5:
+            gesture = model.process_frames_vote(frames, min_votes=3)
+        elif len(frames) >= 2:
+            gesture = model.process_frames_vote(frames, min_votes=2)
+        else:
+            gesture = model.process_frame(frames[0])
+        letter, conf = model.process_frame_with_confidence(frames[0])
+        out = {'gesture': gesture, 'confidence': round(conf, 3)}
+        return jsonify(out)
+    except Exception as e:
+        print(f"Error processing gesture: {e}")
+        return jsonify({'gesture': None})
+
+
+@app.route('/process_word', methods=['POST'])
+def process_word():
+    """
+    Receives a list of base64 images (short video as frames). Extracts hand sequences,
+    runs word model (WLASL-style), returns recognized word or null.
+    Body: { "frames": [ "data:image/jpeg;base64,...", ... ] }
+    """
+    model = get_word_model()
+    if not model or not getattr(model, 'ml_model', None):
+        return jsonify({'word': None, 'error': 'Word model not loaded. Run train_word_model.py after WLASL extraction.'})
+
+    data = request.json
+    frames_b64 = data.get('frames') if data else None
+    if not frames_b64 or not isinstance(frames_b64, list) or len(frames_b64) < 3:
+        return jsonify({'word': None})
+
+    frames = []
+    for item in frames_b64[:60]:  # cap at 60 frames
+        try:
+            s = item if isinstance(item, str) else ''
+            if ',' in s:
+                s = s.split(',', 1)[1]
+            raw = base64.b64decode(s)
+            arr = np.frombuffer(raw, np.uint8)
+            frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if frame is not None:
+                frames.append(frame)
+        except Exception:
+            continue
+    if len(frames) < 3:
+        return jsonify({'word': None})
+    try:
+        word = model.process_sequence(frames)
+        return jsonify({'word': word})
+    except Exception as e:
+        print('Error processing word:', e)
+        return jsonify({'word': None})
+
+
+@app.route('/process_sign', methods=['POST'])
+def process_sign():
+    """
+    Unified capture: accepts frames from a short recording.
+    Body: { "frames": [...], "mode": "letter" | "number" | null }
+    - mode "letter": only return A–Z (single letter).
+    - mode "number": only return 0–9 (single digit).
+    - no mode: try word model first, then letter/digit.
+    """
+    data = request.json or {}
+    frames_b64 = data.get('frames')
+    mode = data.get('mode')  # 'letter' | 'number' | None
+
+    if not frames_b64 or not isinstance(frames_b64, list):
+        return jsonify({'sign': None})
+
+    frames = []
+    for item in frames_b64[:60]:
+        try:
+            s = item if isinstance(item, str) else ''
+            if ',' in s:
+                s = s.split(',', 1)[1]
+            raw = base64.b64decode(s)
+            arr = np.frombuffer(raw, np.uint8)
+            frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if frame is not None:
+                frames.append(frame)
+        except Exception:
+            continue
+
+    # Word model only when not restricting to letter/number
+    if not mode and len(frames) >= 3:
+        word_model = get_word_model()
+        if word_model and getattr(word_model, 'ml_model', None):
+            try:
+                word = word_model.process_sequence(frames)
+                if word:
+                    return jsonify({'sign': word, 'source': 'word'})
+            except Exception as e:
+                print('Word model error:', e)
+
+    gesture_model = get_gesture_model()
+    if not gesture_model or not frames:
+        return jsonify({'sign': None})
+
+    if len(frames) >= 5:
+        gesture = gesture_model.process_frames_vote(frames, min_votes=3)
+    elif len(frames) >= 2:
+        gesture = gesture_model.process_frames_vote(frames, min_votes=2)
+    else:
+        gesture = gesture_model.process_frame(frames[0])
+
+    if not gesture:
+        return jsonify({'sign': None})
+
+    # Filter by mode: letter -> only A–Z, number -> only 0–9
+    if mode == 'letter':
+        if len(gesture) == 1 and gesture.isalpha():
+            return jsonify({'sign': gesture.upper(), 'source': 'letter'})
+        return jsonify({'sign': None})
+    if mode == 'number':
+        if len(gesture) == 1 and gesture.isdigit():
+            return jsonify({'sign': gesture, 'source': 'number'})
+        return jsonify({'sign': None})
+
+    return jsonify({'sign': gesture, 'source': 'letter'})
+
+
+@app.route("/deaf-exam")
+@student_required
+def deaf_exam():
+    exam_id = session.get("exam_id")
+    data = load_exam_data(exam_id)
+
+    if data is None:
+        return redirect(url_for("student_dashboard"))
+
+    # Convert question strings to objects for the template
+    # Template expects q.id and q.text
+    raw_questions = data["questions"]
+    question_objs = []
+    for i, q_text in enumerate(raw_questions):
+        question_objs.append({"id": i + 1, "text": q_text})
+
+    return render_template(
+        "deaf_exam.html",
+        questions=question_objs,
+        answers=data.get("answers", {}),
+        subject=session.get("current_paper_subject", "Exam"),
+    )
+
+@app.route("/submit_deaf_answer", methods=["POST"])
+def submit_deaf_answer():
+    req = request.get_json()
+    q_id = req.get("question_id") # 1-based index from template
+    ans = req.get("answer")
+    
+    if not q_id or not ans:
+        return jsonify({'status': 'error', 'msg': 'Missing data'}), 400
+
+    exam_id = session.get("exam_id")
+    data = load_exam_data(exam_id)
+    if not data:
+        return jsonify({'status': 'error', 'msg': 'Exam not found'}), 404
+
+    # Convert 1-based ID to 0-based index string
+    idx_str = str(int(q_id) - 1)
+    
+    data["answers"][idx_str] = ans
+    update_exam_answers(exam_id, data["answers"])
+    
+    return jsonify({'status': 'success'})
 
 
 if __name__ == "__main__":
