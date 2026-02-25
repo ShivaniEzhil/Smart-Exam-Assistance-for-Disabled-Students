@@ -627,9 +627,11 @@
     <!-- Hidden Canvas for capturing frames -->
     <canvas id="hidden-canvas" style="display:none;"></canvas>
 
+    <script type="application/json" id="deaf-exam-questions">{{ questions | tojson }}</script>
+    <script type="application/json" id="deaf-exam-answers">{{ answers | tojson }}</script>
     <script>
-        var QUESTIONS = {{ questions | tojson }};
-        var ANSWERS = {{ answers | tojson }};
+        var QUESTIONS = JSON.parse(document.getElementById('deaf-exam-questions').textContent);
+        var ANSWERS = JSON.parse(document.getElementById('deaf-exam-answers').textContent);
         var TOTAL = QUESTIONS.length;
         var qIdx = 0;
 
