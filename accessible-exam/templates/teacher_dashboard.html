@@ -129,8 +129,12 @@
               {% else %}All Students{% endif %}
             </span>
           </div>
-          <div class="paper-card-footer">
-            <form method="POST" action="{{ url_for('delete_paper', paper_id=paper.paper_id) }}"
+          <div class="paper-card-footer" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <a href="{{ url_for('teacher_paper_submissions', paper_id=paper.paper_id) }}" class="btn td-btn-upload" style="padding:8px 14px;font-size:0.9rem;">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="vertical-align:-2px;margin-right:4px;"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+              Submissions
+            </a>
+            <form method="POST" action="{{ url_for('delete_paper', paper_id=paper.paper_id) }}" style="margin:0;"
               onsubmit="return confirm('Delete this paper? Students will no longer see it.')">
               <button type="submit" class="btn td-btn-delete">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>

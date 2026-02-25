@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Answer Sheet — {{ session_info.subject }} — {{ session_info.student_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* Unique page background — warm gradient + subtle pattern */
+    body.answer-sheet-body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      background: linear-gradient(135deg, #e8eaf6 0%, #fce4ec 35%, #e3f2fd 70%, #f3e5f5 100%) !important;
+      background-attachment: fixed !important;
+      background-image: none !important;
+    }
+    body.answer-sheet-body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.04) 1px, transparent 0);
+      background-size: 24px 24px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .answer-sheet-page { position: relative; z-index: 1; margin: 0; }
+    /* Document-style card: warm paper + left accent strip */
+    .answer-sheet-card {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 2rem 2rem 2rem 2.5rem;
+      background: linear-gradient(160deg, #fffef9 0%, #fffbf5 50%, #faf8f3 100%);
+      border-radius: 0 20px 20px 0;
+      box-shadow:
+        0 10px 40px rgba(94, 53, 177, 0.12),
+        0 2px 12px rgba(0, 0, 0, 0.06),
+        inset 1px 0 0 rgba(255,255,255,0.8);
+      border: 1px solid rgba(94, 53, 177, 0.15);
+      border-left: none;
+      position: relative;
+    }
+    .answer-sheet-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 8px;
+      background: linear-gradient(180deg, #5e35b1 0%, #7e57c2 50%, #9575cd 100%);
+      border-radius: 20px 0 0 20px;
+      box-shadow: 2px 0 12px rgba(94, 53, 177, 0.35);
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body.answer-sheet-body { background: #fff !important; }
+      body.answer-sheet-body::before { display: none !important; }
+      .answer-sheet-card {
+        background: #fff !important;
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        border-left: 8px solid #5e35b1 !important;
+      }
+      .answer-sheet-card::before { display: none !important; }
+    }
+    .answer-sheet-page h1 {
+      color: #2d2d2d;
+      margin-top: 0;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .answer-sheet-page h2 {
+      color: #2d2d2d;
+      font-size: 1.25rem;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    .answer-sheet-meta {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 24px;
+      margin-bottom: 2rem;
+      padding: 1.25rem 1.5rem;
+      background: linear-gradient(135deg, rgba(94, 53, 177, 0.06) 0%, rgba(126, 87, 194, 0.04) 100%);
+      border-radius: 12px;
+      border-left: 4px solid #7e57c2;
+    }
+    .answer-sheet-meta dt { font-weight: 600; color: #1a1a1a; }
+    .answer-sheet-meta dd { margin: 0; color: #333; }
+    .answer-sheet-item {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(94, 53, 177, 0.12);
+    }
+    .answer-sheet-item h3 {
+      margin: 0 0 8px 0;
+      font-size: 1rem;
+      color: #5e35b1;
+      font-weight: 600;
+    }
+    .answer-sheet-q { margin: 0 0 8px 0; font-size: 0.95rem; color: #1a1a1a; line-height: 1.6; }
+    .answer-sheet-a {
+      margin: 0;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+      color: #1b5e20;
+      border-left: 4px solid #2e7d32;
+      border-radius: 0 10px 10px 0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+    .answer-sheet-a strong { color: #1b5e20; }
+    .no-print a { font-weight: 600; }
+  </style>
+</head>
+<body class="answer-sheet-body">
+  <main id="main-content" class="answer-sheet-page" role="main">
+    <div class="answer-sheet-card">
+    <div class="no-print" style="margin-bottom: 1rem;">
+      <a href="{{ url_for('teacher_dashboard') }}" style="color: #1565c0;">← Back to Dashboard</a>
+      &nbsp;|&nbsp;
+      <a href="{{ url_for('teacher_download_answer_sheet_csv', exam_id=exam_id) }}" download style="color: #2e7d32;">Download CSV</a>
+      &nbsp;|&nbsp;
+      <button type="button" onclick="window.print();" class="btn btn-login btn-login-teacher">Print / Save as PDF</button>
+    </div>
+
+    <h1>Answer Sheet</h1>
+    <dl class="answer-sheet-meta">
+      <dt>Subject</dt><dd>{{ session_info.subject }}</dd>
+      <dt>Student ID</dt><dd>{{ session_info.student_id }}</dd>
+      <dt>Student Name</dt><dd>{{ session_info.student_name }}</dd>
+      <dt>Exam Mode</dt><dd>{{ 'Voice (Blind)' if session_info.exam_mode == 'voice' else 'Visual (Deaf)' }}</dd>
+      <dt>Started</dt><dd>{{ session_info.started_at }}</dd>
+      <dt>Completed</dt><dd>{{ session_info.completed_at or '—' }}</dd>
+    </dl>
+
+    <h2>Questions &amp; Answers</h2>
+    {% for i in range(total) %}
+    <div class="answer-sheet-item">
+      <h3>Question {{ i + 1 }}</h3>
+      <p class="answer-sheet-q">{{ questions[i] }}</p>
+      <p class="answer-sheet-a"><strong>Answer:</strong> {{ answers.get(i | string, '— Not answered —') }}</p>
+    </div>
+    {% endfor %}
+    </div>
+  </main>
+</body>
+</html>

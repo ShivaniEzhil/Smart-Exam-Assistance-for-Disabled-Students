@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submissions — {{ paper.subject }} — Accessible Exam Tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* Unique: teal/sage background with diagonal stripe pattern */
+    body.submissions-body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      background: linear-gradient(145deg, #e0f2f1 0%, #f1f8e9 50%, #e8f5e9 100%) !important;
+      background-attachment: fixed !important;
+      background-image: none !important;
+    }
+    body.submissions-body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        -55deg,
+        transparent,
+        transparent 40px,
+        rgba(0, 150, 136, 0.04) 40px,
+        rgba(0, 150, 136, 0.04) 41px
+      );
+      pointer-events: none;
+      z-index: 0;
+    }
+    .submissions-page { position: relative; z-index: 1; margin: 0; }
+    /* Card: top ribbon + folded-corner accent */
+    .submissions-card {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 0 2rem 2rem 2rem;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow:
+        0 8px 32px rgba(0, 105, 92, 0.12),
+        0 2px 12px rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(0, 150, 136, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    .submissions-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, #00695c 0%, #00897b 35%, #26a69a 100%);
+    }
+    .submissions-card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 42px 42px 0;
+      border-color: transparent #e0f2f1 transparent transparent;
+      border-radius: 0 0 0 4px;
+    }
+    .submissions-page { margin: 0; }
+    .submissions-back { margin-bottom: 1.25rem; padding-top: 1rem; }
+    .submissions-back a { color: #00695c !important; font-weight: 600; }
+    .submissions-back a:hover { color: #004d40 !important; }
+    .submissions-page h1 { color: #1a1a1a; margin-top: 0; font-size: 1.6rem; font-weight: 700; }
+    .submissions-page .subtitle { color: #333; font-size: 1rem; margin-bottom: 1.5rem; }
+    .submissions-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0, 105, 92, 0.06);
+      border: 2px solid rgba(0, 150, 136, 0.35);
+    }
+    .submissions-table th, .submissions-table td { padding: 12px 16px; text-align: left; border-bottom: 2px solid #7fbad3; color: #1a1a1a; }
+    .submissions-table th { background: linear-gradient(180deg, #e0f2f1 0%, #f1f8e9 100%); font-weight: 600; color: #004d40; border-bottom: 2px solid #00897b; }
+    .submissions-table tr:last-child td { border-bottom: none; }
+    .submissions-table tbody tr:hover { background: #f5faf9; }
+    .submissions-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .submissions-actions a { padding: 8px 14px; border-radius: 8px; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+    .btn-view { background: #e0f7fa; color: #006064; border: 2px solid #26c6da; }
+    .btn-view:hover { background: #b2ebf2; color: #006064; border-color: #00acc1; }
+    .btn-download { background: #e8f5e9; color: #1b5e20; border: 2px solid #66bb6a; }
+    .btn-download:hover { background: #c8e6c9; color: #1b5e20; border-color: #43a047; }
+    .submissions-empty { text-align: center; padding: 3rem; color: #333; }
+    .submissions-empty p { color: #333; }
+  </style>
+</head>
+<body class="submissions-body">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <main id="main-content" class="submissions-page" role="main">
+    <div class="submissions-card">
+    <div class="submissions-back">
+      <a href="{{ url_for('teacher_dashboard') }}" class="btn td-btn-logout" style="display:inline-flex;align-items:center;gap:6px;">
+        ← Back to Dashboard
+      </a>
+    </div>
+    <h1>{{ paper.subject }} — Submitted Answer Sheets</h1>
+    <p class="subtitle">Students who have attempted this paper. View or download their answer sheets for evaluation.</p>
+
+    {% if submissions | length == 0 %}
+    <div class="submissions-empty" role="status">
+      <p>No submissions yet for this paper.</p>
+      <p>Students will appear here after they complete the exam.</p>
+    </div>
+    {% else %}
+    <table class="submissions-table" role="table">
+      <thead>
+        <tr>
+          <th scope="col">Student ID</th>
+          <th scope="col">Name</th>
+          <th scope="col">Mode</th>
+          <th scope="col">Started</th>
+          <th scope="col">Completed</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in submissions %}
+        <tr>
+          <td>{{ s.student_id }}</td>
+          <td>{{ s.student_name }}</td>
+          <td>{{ 'Voice (Blind)' if s.exam_mode == 'voice' else 'Visual (Deaf)' }}</td>
+          <td>{{ s.started_at }}</td>
+          <td>{{ s.completed_at or '—' }}</td>
+          <td>
+            <div class="submissions-actions">
+              <a href="{{ url_for('teacher_view_answer_sheet', exam_id=s.exam_id) }}" class="btn-view" target="_blank" rel="noopener">View</a>
+              <a href="{{ url_for('teacher_download_answer_sheet_csv', exam_id=s.exam_id) }}" class="btn-download" download>Download CSV</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    </div>
+  </main>
+</body>
+</html>

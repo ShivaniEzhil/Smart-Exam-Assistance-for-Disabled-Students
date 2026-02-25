@@ -3,7 +3,7 @@ Accessible Exam Tool — Flask backend
 Teacher/Student login, paper management, and voice exam with OCR + TTS/STT
 """
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, Response, send_file
 import pytesseract
 from PIL import Image, ImageEnhance, ImageFilter
 from pypdf import PdfReader
@@ -11,6 +11,9 @@ import os
 import re
 import json
 import uuid
+import sqlite3
+import csv
+import io
 from datetime import datetime
 from functools import wraps
 from werkzeug.utils import secure_filename
@@ -38,6 +41,174 @@ ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS | PDF_EXTENSIONS
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(EXAM_FOLDER, exist_ok=True)
 os.makedirs(DATA_FOLDER, exist_ok=True)
+
+# -------------------------------------------------
+# DATABASE (SQLite) — exam sessions & answers
+# -------------------------------------------------
+DB_PATH = os.path.join(DATA_FOLDER, "exam.db")
+
+
+def get_db():
+    """Get a connection to the SQLite database."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    """Create tables if they do not exist."""
+    conn = get_db()
+    try:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS exam_sessions (
+                exam_id TEXT PRIMARY KEY,
+                paper_id TEXT NOT NULL,
+                student_id TEXT NOT NULL,
+                student_name TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                exam_mode TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                completed_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS answers (
+                exam_id TEXT NOT NULL,
+                question_index INTEGER NOT NULL,
+                answer_text TEXT NOT NULL,
+                PRIMARY KEY (exam_id, question_index),
+                FOREIGN KEY (exam_id) REFERENCES exam_sessions(exam_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_exam_sessions_paper ON exam_sessions(paper_id);
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_insert_exam_session(exam_id, paper_id, student_id, student_name, subject, exam_mode, started_at):
+    """Record a new exam session (called when student starts exam)."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT OR REPLACE INTO exam_sessions
+               (exam_id, paper_id, student_id, student_name, subject, exam_mode, started_at, completed_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, NULL)""",
+            (exam_id, paper_id, student_id, student_name, subject, exam_mode, started_at),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_update_answers(exam_id, answers_dict):
+    """Replace all answers for an exam (dict: question_index -> answer_text)."""
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM answers WHERE exam_id = ?", (exam_id,))
+        for q_idx, text in answers_dict.items():
+            conn.execute(
+                "INSERT INTO answers (exam_id, question_index, answer_text) VALUES (?, ?, ?)",
+                (exam_id, int(q_idx), text),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_set_exam_completed(exam_id):
+    """Mark an exam session as completed (when student reaches completion page)."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE exam_sessions SET completed_at = ? WHERE exam_id = ?",
+            (datetime.now().strftime("%Y-%m-%d %H:%M"), exam_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_get_submissions_for_paper(paper_id, teacher_username):
+    """Get all exam sessions for a paper (only papers owned by this teacher). Returns list of dicts."""
+    papers = get_papers()
+    paper = next((p for p in papers if p["paper_id"] == paper_id and p.get("teacher") == teacher_username), None)
+    if not paper:
+        return []
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT exam_id, paper_id, student_id, student_name, subject, exam_mode, started_at, completed_at
+               FROM exam_sessions WHERE paper_id = ? ORDER BY started_at DESC""",
+            (paper_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def db_get_answers_for_exam(exam_id):
+    """Get all answers for an exam as dict question_index -> answer_text."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT question_index, answer_text FROM answers WHERE exam_id = ? ORDER BY question_index",
+            (exam_id,),
+        ).fetchall()
+        return {str(r["question_index"]): r["answer_text"] for r in rows}
+    finally:
+        conn.close()
+
+
+# Initialize database on startup
+init_db()
+
+
+def _backfill_exam_sessions_from_json():
+    """One-time: add existing exam_data JSON sessions into DB so teachers can see old submissions."""
+    conn = get_db()
+    try:
+        existing = set(
+            row[0] for row in conn.execute("SELECT exam_id FROM exam_sessions").fetchall()
+        )
+    finally:
+        conn.close()
+    for fname in os.listdir(EXAM_FOLDER):
+        if not fname.endswith(".json"):
+            continue
+        exam_id = fname[:-5]
+        if exam_id in existing:
+            continue
+        data = load_exam_data(exam_id)
+        if not data or not data.get("student_id") or not data.get("paper_id"):
+            continue
+        db_insert_exam_session(
+            exam_id=exam_id,
+            paper_id=data["paper_id"],
+            student_id=data["student_id"],
+            student_name=_get_student_name(data["student_id"]),
+            subject=_get_paper_subject(data["paper_id"]) or "Exam",
+            exam_mode="voice",  # unknown for old data
+            started_at=data.get("started_at", ""),
+        )
+        if data.get("answers"):
+            db_update_answers(exam_id, data["answers"])
+
+
+def _get_student_name(student_id):
+    """Get student name from users.json by roll number."""
+    users = get_users()
+    for group in ("blind_students", "deaf_students"):
+        for roll, info in users.get(group, {}).items():
+            if roll == student_id:
+                return info.get("name", student_id)
+    return student_id
+
+
+def _get_paper_subject(paper_id):
+    """Get subject for a paper_id from papers.json."""
+    for p in get_papers():
+        if p.get("paper_id") == paper_id:
+            return p.get("subject", "")
+    return ""
 
 # -------------------------------------------------
 # USER & PAPER DATA  (JSON files on disk)
@@ -154,7 +325,7 @@ def load_exam_data(exam_id):
 
 
 def update_exam_answers(exam_id, answers):
-    """Update only the answers in an existing exam file."""
+    """Update only the answers in an existing exam file and sync to database."""
     data = load_exam_data(exam_id)
     if data is None:
         return False
@@ -162,6 +333,10 @@ def update_exam_answers(exam_id, answers):
     path = os.path.join(EXAM_FOLDER, f"{exam_id}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+    try:
+        db_update_answers(exam_id, answers)
+    except Exception:
+        pass  # JSON remains source of truth if DB fails
     return True
 
 
@@ -382,6 +557,115 @@ def delete_paper(paper_id):
     return redirect(url_for("teacher_dashboard"))
 
 
+def _teacher_can_access_exam(exam_id):
+    """Return True if current teacher owns the paper for this exam."""
+    data = load_exam_data(exam_id)
+    if not data:
+        return False
+    paper_id = data.get("paper_id")
+    papers = get_papers()
+    paper = next((p for p in papers if p["paper_id"] == paper_id and p.get("teacher") == session.get("username")), None)
+    return paper is not None
+
+
+@app.route("/teacher/paper/<paper_id>/submissions")
+@teacher_required
+def teacher_paper_submissions(paper_id):
+    """List all submitted exam sessions for a paper (only for owning teacher)."""
+    submissions = db_get_submissions_for_paper(paper_id, session["username"])
+    papers = get_papers()
+    paper = next((p for p in papers if p["paper_id"] == paper_id and p.get("teacher") == session["username"]), None)
+    if not paper:
+        flash("Paper not found.", "error")
+        return redirect(url_for("teacher_dashboard"))
+    return render_template(
+        "teacher_submissions.html",
+        paper=paper,
+        submissions=submissions,
+    )
+
+
+@app.route("/teacher/view-answer-sheet/<exam_id>")
+@teacher_required
+def teacher_view_answer_sheet(exam_id):
+    """View a single student's answer sheet (HTML, printable to PDF)."""
+    if not _teacher_can_access_exam(exam_id):
+        flash("Exam not found.", "error")
+        return redirect(url_for("teacher_dashboard"))
+    data = load_exam_data(exam_id)
+    if not data:
+        flash("Exam data not found.", "error")
+        return redirect(url_for("teacher_dashboard"))
+    # Prefer DB answers; fallback to JSON for older sessions
+    answers = db_get_answers_for_exam(exam_id) or data.get("answers", {})
+    questions = data["questions"]
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT student_id, student_name, subject, exam_mode, started_at, completed_at FROM exam_sessions WHERE exam_id = ?",
+            (exam_id,),
+        ).fetchone()
+        session_info = dict(row) if row else {}
+    finally:
+        conn.close()
+    return render_template(
+        "teacher_view_answer_sheet.html",
+        exam_id=exam_id,
+        session_info=session_info,
+        questions=questions,
+        answers=answers,
+        total=len(questions),
+    )
+
+
+@app.route("/teacher/download-answer-sheet/<exam_id>.csv")
+@teacher_required
+def teacher_download_answer_sheet_csv(exam_id):
+    """Download a single student's answer sheet as CSV (open in Excel)."""
+    if not _teacher_can_access_exam(exam_id):
+        flash("Exam not found.", "error")
+        return redirect(url_for("teacher_dashboard"))
+    data = load_exam_data(exam_id)
+    if not data:
+        flash("Exam data not found.", "error")
+        return redirect(url_for("teacher_dashboard"))
+    answers = db_get_answers_for_exam(exam_id) or data.get("answers", {})
+    questions = data["questions"]
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT student_id, student_name, subject, exam_mode, started_at, completed_at FROM exam_sessions WHERE exam_id = ?",
+            (exam_id,),
+        ).fetchone()
+        session_info = dict(row) if row else {}
+    finally:
+        conn.close()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Answer Sheet", ""])
+    writer.writerow(["Subject", session_info.get("subject", "")])
+    writer.writerow(["Student ID", session_info.get("student_id", "")])
+    writer.writerow(["Student Name", session_info.get("student_name", "")])
+    writer.writerow(["Exam Mode", session_info.get("exam_mode", "")])
+    writer.writerow(["Started", session_info.get("started_at", "")])
+    writer.writerow(["Completed", session_info.get("completed_at", "")])
+    writer.writerow([])
+    writer.writerow(["Question #", "Question", "Answer"])
+    for i in range(len(questions)):
+        q_text = questions[i][:500] + "..." if len(questions[i]) > 500 else questions[i]
+        ans = answers.get(str(i), "")
+        writer.writerow([i + 1, q_text, ans])
+
+    buffer.seek(0)
+    return send_file(
+        io.BytesIO(buffer.getvalue().encode("utf-8-sig")),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"answer_sheet_{exam_id}.csv",
+    )
+
+
 # =====================================================
 # ROUTES — STUDENT
 # =====================================================
@@ -454,6 +738,18 @@ def start_exam(paper_id):
         questions=master_data["questions"],
         paper_id=paper_id,
         student_id=session["username"],
+    )
+
+    # Store in database for teacher evaluation and download
+    started_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    db_insert_exam_session(
+        exam_id=student_exam_id,
+        paper_id=paper_id,
+        student_id=session["username"],
+        student_name=session.get("name", ""),
+        subject=paper["subject"],
+        exam_mode=session.get("student_mode", "voice"),
+        started_at=started_at,
     )
 
     session["exam_id"] = student_exam_id
@@ -537,6 +833,11 @@ def completed():
     data = load_exam_data(exam_id)
     if data is None:
         return redirect(url_for("student_dashboard"))
+    # Mark exam as completed in database (for teacher download/list)
+    try:
+        db_set_exam_completed(exam_id)
+    except Exception:
+        pass
     return render_template(
         "completed.html",
         answers=data.get("answers", {}),
@@ -603,57 +904,70 @@ def sign_models_status():
     return jsonify({'word_model_loaded': word_loaded})
 
 
-# Word suggestions for spell-and-autocomplete (keyboard auto-correct style)
-_WORD_SUGGESTIONS_CACHE = None
-_PHRASE_SUGGESTIONS_CACHE = None
+# Word/phrase suggestions for spell-and-autocomplete (single file: data/phrase_suggestions.json)
+_SUGGESTIONS_DATA_CACHE = None
 
-def _get_word_suggestions_vocab():
-    global _WORD_SUGGESTIONS_CACHE
-    if _WORD_SUGGESTIONS_CACHE is None:
-        path = os.path.join(DATA_FOLDER, "word_suggestions.json")
-        if os.path.isfile(path):
-            with open(path, "r", encoding="utf-8") as f:
-                _WORD_SUGGESTIONS_CACHE = json.load(f)
-        else:
-            _WORD_SUGGESTIONS_CACHE = []
-    return _WORD_SUGGESTIONS_CACHE
-
-
-def _get_phrase_suggestions():
-    global _PHRASE_SUGGESTIONS_CACHE
-    if _PHRASE_SUGGESTIONS_CACHE is None:
+def _load_suggestions_data():
+    """Load phrase_suggestions.json once. File has 'words' (list) and 'phrases' (dict)."""
+    global _SUGGESTIONS_DATA_CACHE
+    if _SUGGESTIONS_DATA_CACHE is None:
         path = os.path.join(DATA_FOLDER, "phrase_suggestions.json")
         if os.path.isfile(path):
             with open(path, "r", encoding="utf-8") as f:
-                _PHRASE_SUGGESTIONS_CACHE = json.load(f)
+                _SUGGESTIONS_DATA_CACHE = json.load(f)
         else:
-            _PHRASE_SUGGESTIONS_CACHE = {}
-    return _PHRASE_SUGGESTIONS_CACHE
+            _SUGGESTIONS_DATA_CACHE = {}
+    return _SUGGESTIONS_DATA_CACHE
+
+def _get_word_suggestions_vocab():
+    """Prefix-based autocomplete word list (from same file as phrases)."""
+    data = _load_suggestions_data()
+    return data.get("words", []) if isinstance(data, dict) else []
+
+def _get_phrase_suggestions():
+    """Context-based next-word suggestions (from same file)."""
+    data = _load_suggestions_data()
+    if isinstance(data, dict) and "phrases" in data:
+        return data["phrases"]
+    return data if isinstance(data, dict) else {}
 
 
 @app.route('/word_suggestions')
 def word_suggestions():
-    """Return suggestions. ?prefix=hel -> prefix match. ?context=help+me -> next-word suggestions."""
+    """Return suggestions. ?prefix=hel -> prefix match (ranked). ?context=help+me -> next-word suggestions."""
     prefix = (request.args.get("prefix") or "").lower().strip()
     context = (request.args.get("context") or "").lower().strip()
+    max_suggestions = 12
 
-    # Context-based: last 2-3 words -> suggest next words
+    # Context-based: last 1-4 words -> suggest next words (most specific first)
     if context:
         words = context.split()
         phrase_data = _get_phrase_suggestions()
-        # Try longest match first: "help me" then "help" then ""
-        for n in range(min(3, len(words)), 0, -1):
+        for n in range(min(4, len(words)), 0, -1):
             phrase = " ".join(words[-n:])
             if phrase in phrase_data:
-                return jsonify({"suggestions": phrase_data[phrase][:8]})
+                next_words = phrase_data[phrase][:max_suggestions]
+                return jsonify({"suggestions": next_words})
         return jsonify({"suggestions": []})
 
-    # Prefix-based: current word being spelled
+    # Prefix-based: current word being spelled — rank for accuracy like autocomplete
     if not prefix:
         return jsonify({"suggestions": []})
     vocab = _get_word_suggestions_vocab()
-    matches = [w for w in vocab if w.startswith(prefix)][:8]
-    return jsonify({"suggestions": matches})
+    if not vocab:
+        return jsonify({"suggestions": []})
+    # Build word -> index for priority (earlier in list = more common)
+    vocab_list = vocab if isinstance(vocab, list) else []
+    word_to_rank = {}
+    for i, w in enumerate(vocab_list):
+        if isinstance(w, str):
+            word_to_rank.setdefault(w, i)
+        elif isinstance(w, dict) and w.get("word"):
+            word_to_rank.setdefault(w["word"], i)
+    matches = [w for w in word_to_rank if w.startswith(prefix)]
+    # Rank: 1) priority (position in vocab), 2) length (shorter completions first), 3) alphabetical
+    matches.sort(key=lambda w: (word_to_rank.get(w, 9999), len(w), w))
+    return jsonify({"suggestions": matches[:max_suggestions]})
 
 
 @app.route('/process_gesture', methods=['POST'])
@@ -858,4 +1172,8 @@ def submit_deaf_answer():
 
 
 if __name__ == "__main__":
+    try:
+        _backfill_exam_sessions_from_json()
+    except Exception as e:
+        print("Note: Backfill of existing exams skipped:", e)
     app.run(debug=True, port=5000)

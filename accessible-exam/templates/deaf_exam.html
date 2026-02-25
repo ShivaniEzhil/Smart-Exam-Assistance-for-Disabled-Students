@@ -471,6 +471,11 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
+        }
+        .suggestions-hint {
+            font-size: 0.85rem;
+            color: #666;
+            font-style: italic;
             margin-top: 10px;
             min-height: 40px;
             padding: 12px;
@@ -776,7 +781,7 @@
                     var context = words.slice(-3).join(' ');
                     url = '/word_suggestions?context=' + encodeURIComponent(context);
                 } else {
-                    els.suggestionsRow.innerHTML = '';
+                    els.suggestionsRow.innerHTML = '<span class="suggestions-hint">Type a few letters or add a letter with the camera to see suggestions.</span>';
                     return;
                 }
             }
@@ -786,6 +791,10 @@
                 .then(function(d) {
                     var suggestions = d.suggestions || [];
                     els.suggestionsRow.innerHTML = '';
+                    if (suggestions.length === 0 && !spellCurrentWord && !(els.typeIn && els.typeIn.value.trim())) {
+                        els.suggestionsRow.innerHTML = '<span class="suggestions-hint">Type a few letters or add a letter with the camera to see suggestions.</span>';
+                        return;
+                    }
                     suggestions.forEach(function(word) {
                         var chip = document.createElement('button');
                         chip.className = 'suggestion-chip';
@@ -922,8 +931,9 @@
                                 els.wordModelStatus.textContent = '✓ Word + letter recognition enabled.';
                                 els.wordModelStatus.style.color = '#2e7d32';
                             } else {
-                                els.wordModelStatus.textContent = 'Only letters/numbers for now. To enable words: run WLASL extraction then train_word_model.py (see sign_language_training/README_WORD_MODEL.md).';
-                                els.wordModelStatus.style.color = '#c62828';
+                                els.wordModelStatus.textContent = 'Tip: You can spell answers using Letter or Number signs (hold 2.5s), or type in the box — suggestions appear as you type. Full word-by-sign needs WLASL training (see sign_language_training/README_WORD_MODEL.md).';
+                                els.wordModelStatus.style.color = '#1565c0';
+                                els.wordModelStatus.style.fontWeight = 'normal';
                             }
                         }
                     })

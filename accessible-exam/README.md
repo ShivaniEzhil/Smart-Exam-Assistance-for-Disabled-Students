@@ -14,13 +14,12 @@ Visually impaired students face significant barriers during written examinations
 
 The **Accessible Exam Tool** is a Flask-based web application where:
 
-1. **Staff/invigilators** upload the question paper (as a PDF or image).
-2. The system **automatically extracts** all questions using OCR (for images) or PDF text parsing.
-3. **Blind students** interact with the exam entirely through **voice**:
-   - Questions are **read aloud** using Text-to-Speech (TTS).
-   - Students **speak their answers** using Speech-to-Text (STT).
-   - Full **keyboard navigation** is available — no mouse needed.
-4. Answers are saved and a **completion summary** is shown at the end.
+1. **Teachers** log in, upload question papers (PDF or image), and assign them to **Voice** (blind) or **Visual** (deaf) or both.
+2. The system **extracts** questions using OCR (images) or PDF text parsing.
+3. **Students** log in with roll number and DOB, choose exam type, and start an exam:
+   - **Voice exam (blind):** Questions read aloud (TTS), answers by speech (STT), full keyboard navigation.
+   - **Visual/Deaf exam:** Answer by sign language (camera) and/or typing, with word/phrase suggestions.
+4. Answers are saved (SQLite + JSON). **Teachers** can view submissions per paper and **download answer sheets as CSV** (or view/print) for evaluation.
 
 ---
 
@@ -110,14 +109,35 @@ Adapts to all screen sizes with 4 breakpoints:
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Backend** | Flask (Python) | Web server, routing, file handling |
+| **Backend** | Flask (Python) | Web server, routing, auth, file handling |
 | **OCR** | pytesseract + Pillow | Extract text from images of question papers |
 | **PDF Parsing** | pypdf | Extract text from PDF question papers |
+| **Sign language** | OpenCV, MediaPipe, NumPy | Hand detection & gesture/word recognition (Deaf mode) |
 | **TTS** | Web Speech API (SpeechSynthesis) | Read questions aloud in the browser |
 | **STT** | Web Speech API (SpeechRecognition) | Capture voice answers in the browser |
 | **Frontend** | HTML5, CSS3, Vanilla JavaScript | UI, keyboard navigation, accessibility |
-| **Data Storage** | JSON files on disk | Per-session exam data (questions + answers) |
+| **Data Storage** | SQLite + JSON | Exam sessions & answers (DB); papers & users (JSON) |
 | **Templating** | Jinja2 | Server-side HTML rendering |
+
+---
+
+## Requirements (Python dependencies)
+
+All dependencies are listed in **`requirements.txt`**. Brief usage:
+
+| Package | Used for |
+|--------|----------|
+| **flask** | Web app: routes, sessions, auth, file uploads, APIs. |
+| **pypdf** | Extracting text from PDF question papers. |
+| **Pillow** | Opening and preprocessing images before OCR. |
+| **pytesseract** | OCR: turning question-paper images into text. *(Requires Tesseract installed on the system, e.g. `brew install tesseract` on macOS.)* |
+| **opencv-python-headless** | Processing video frames for sign-language hand detection (Deaf mode). |
+| **numpy** | Array handling for frames and landmark data (gesture/word models). |
+| **mediapipe** | Hand landmark detection for sign recognition (letters and words). |
+| **protobuf** | Used by MediaPipe; keep version &lt;4 for compatibility. |
+| **scikit-learn** | *Optional.* Only needed if you run `train_alphabet_model.py` or `train_word_model.py` to train sign-language models. |
+
+**Not required:** TTS and STT run in the browser via the Web Speech API, so **pyttsx3**, **SpeechRecognition**, and **PyAudio** are not in `requirements.txt`.
 
 ---
 
@@ -125,40 +145,98 @@ Adapts to all screen sizes with 4 breakpoints:
 
 ```
 accessible-exam/
-├── app.py                    # Flask backend (routes, OCR, PDF, API)
-├── requirements.txt          # Python dependencies
+├── app.py                    # Flask backend (routes, OCR, PDF, sign APIs, DB)
+├── requirements.txt          # Python dependencies (see Requirements section above)
 ├── README.md                 # This file
+├── gesture_model.py          # Letter/digit sign recognition (MediaPipe + ML)
+├── word_model.py             # Word-level sign recognition (WLASL-style)
+├── landmark_utils.py         # Hand landmark normalization for models
 │
 ├── static/
-│   ├── style.css             # All styles (responsive, accessible)
-│   └── image.png             # Background illustration
+│   └── style.css             # Styles (responsive, accessible)
 │
 ├── templates/
-│   ├── index.html            # Home page — mode selection
-│   ├── blind.html            # Upload page — staff uploads question paper
-│   ├── blind_exam.html       # Exam page — student takes exam by voice
-│   ├── completed.html        # Completion — answer review & summary
-│   └── deaf.html             # Deaf mode (placeholder)
+│   ├── index.html            # Login — Teacher or Student (voice / visual)
+│   ├── teacher_dashboard.html   # Upload papers, view submissions
+│   ├── teacher_submissions.html  # List submissions per paper; View / Download CSV
+│   ├── teacher_view_answer_sheet.html  # Printable answer sheet
+│   ├── student_dashboard.html    # Available papers, Start Exam
+│   ├── blind_exam.html       # Voice exam (TTS/STT, keyboard)
+│   ├── deaf_exam.html        # Deaf mode — sign + type answers
+│   ├── deaf.html             # Deaf mode entry
+│   └── completed.html        # Completion — answer review, Read All
+│
+├── data/                     # JSON + SQLite (auto-created)
+│   ├── users.json            # Teachers, blind_students, deaf_students
+│   ├── papers.json           # Uploaded paper metadata
+│   ├── phrase_suggestions.json # Words + phrases for Deaf mode autocomplete
+│   ├── phrase_suggestions.json
+│   └── exam.db               # SQLite: exam_sessions, answers (for teacher download)
 │
 ├── uploads/                  # Uploaded question papers (auto-created)
-├── exam_data/                # JSON exam sessions (auto-created)
-└── BUILD_PLAN.md             # Step-by-step development plan
+├── exam_data/                # JSON exam session files (auto-created)
+└── sign_language_training/   # Scripts to train letter/word models (optional)
 ```
+
+---
+
+## Datasets and data files
+
+Data used by the app and by the optional sign-language training pipeline:
+
+### Application data (used at runtime)
+
+| Dataset / file | Location | Used by | Purpose |
+|----------------|----------|---------|---------|
+| **users.json** | `data/users.json` | `app.py` (`get_users`, auth) | Teachers and students (blind_students, deaf_students): usernames, passwords, DOB, names. |
+| **papers.json** | `data/papers.json` | `app.py` (dashboards, start exam) | Uploaded paper metadata: subject, exam_id, teacher, exam_mode, num_questions. |
+| **exam.db** | `data/exam.db` | `app.py` (DB helpers, teacher submissions) | SQLite: exam_sessions, answers. Used for teacher submission list and CSV download. |
+| **exam_data/*.json** | `exam_data/<exam_id>.json` | `app.py` (load/save exam, answers) | Per-session exam content: instructions, questions, answers; paper_id, student_id. |
+| **phrase_suggestions.json** | `data/phrase_suggestions.json` | `app.py` (`/word_suggestions`) | **words**: prefix-based autocomplete list; **phrases**: context-based next-word suggestions (e.g. "help" → "me"). |
+| **word_classes.json** | `word_classes.json` (project root) | `word_model.py` | Class names for the word sign model (output of `train_word_model.py`). |
+| **word_model.pkl** | Project root | `word_model.py` | Trained word-level sign classifier (WLASL-style). Optional; Deaf mode works with letters only without it. |
+| **action.pkl** / **action_cnn.keras** + **action_classes.pkl** | Project root | `gesture_model.py` | Letter/digit sign model(s). Optional; from `train_alphabet_model.py` or `train_alphabet_cnn.py`. |
+| **hand_landmarker.task** | Project root (or sign_language_training/) | `gesture_model.py`, `word_model.py`, extraction scripts | MediaPipe hand-landmark model; required for sign recognition and for building training data. |
+
+### Sign-language training data (optional)
+
+| Dataset / folder | Location | Used by | Purpose |
+|------------------|----------|---------|---------|
+| **WLASL (metadata)** | `sign_language_training/WLASL-master/start_kit/WLASL_v0.3.json` | `extract_wlasl_hand_sequences.py`, `download_wlasl_subset.py`, WLASL start_kit scripts | Word-level ASL dataset index: glosses, video_id, url, frame ranges, split. |
+| **WLASL videos** | `sign_language_training/WLASL-master/start_kit/videos/` (after download) | `extract_wlasl_hand_sequences.py` | Video clips per gloss; converted to hand sequences. |
+| **WLASL_Hand_Data** | `WLASL_Hand_Data/<gloss>/<id>.npy` | `train_word_model.py` | Extracted hand sequences (30×63) per word; input for word model training. |
+| **Custom_Hand_Data** | Optional folder from `extract_custom_word_sequences.py` | `train_word_model.py` (e.g. `--data-dir Custom_Hand_Data`) | Same format as WLASL_Hand_Data for custom word videos. |
+| **MP_Data** | `MP_Data/<Class>/<sequence>/0.npy` (etc.) | `train_alphabet_model.py`, `train_alphabet_cnn.py`, `build_wlasl_from_mpdata.py` | Per-class hand keypoints (63-d or 21×3) for letter/digit training; produced by `process_images.py`. |
+| **wlasl_alphabet_images** | `sign_language_training/wlasl_alphabet_images/<Class>/` | `process_images.py` | Input images per letter/digit; script writes keypoints to `MP_Data`. |
+| **ASL Alphabet (Kaggle)** | Downloaded via `download_asl_dataset.py` | Optional; organize into class folders for `process_images.py` | External ASL letter images for building MP_Data. |
+
+### File → usage summary
+
+- **app.py:** `data/users.json`, `data/papers.json`, `data/exam.db`, `data/phrase_suggestions.json` (words + phrases), `exam_data/*.json`.
+- **gesture_model.py:** `action.pkl` or `action_cnn.keras` + `action_classes.pkl`, `hand_landmarker.task`.
+- **word_model.py:** `word_model.pkl`, `word_classes.json`, `hand_landmarker.task`.
+- **train_alphabet_model.py:** `MP_Data` → produces `action.pkl`.
+- **train_alphabet_cnn.py:** `MP_Data` → produces `action_cnn.keras`, `action_classes.pkl`.
+- **train_word_model.py:** `WLASL_Hand_Data` or `Custom_Hand_Data` → produces `word_model.pkl`, `word_classes.json`.
+- **extract_wlasl_hand_sequences.py:** WLASL videos + `WLASL_v0.3.json` → writes `WLASL_Hand_Data`.
+- **extract_custom_word_sequences.py:** Custom video folder → writes `WLASL_Hand_Data` or `Custom_Hand_Data`.
+- **process_images.py:** `wlasl_alphabet_images` (or similar) + `hand_landmarker.task` → writes `MP_Data`.
+- **build_wlasl_from_mpdata.py:** `MP_Data` → builds `WLASL_Hand_Data` when WLASL videos are not available.
 
 ---
 
 ## How It Works — Step by Step
 
-### Step 1: Staff Uploads Question Paper
-- Staff navigates to `/blind` and uploads a PDF or image of the question paper.
-- The system extracts text using OCR (for images) or PDF parsing.
-- Instructions and questions are automatically separated.
-- Data is saved as a JSON file on disk.
+### Step 1: Teacher Uploads Question Paper
+- Teacher logs in, goes to dashboard, and uploads a PDF or image (subject name, assign to Voice/Visual/Both).
+- The system extracts text (OCR or PDF), splits instructions and questions, and creates an exam session.
+- Paper appears in the teacher’s list; a copy is stored for students who match the assigned mode.
 
 ### Step 2: Student Enters Exam
-- The student clicks "Proceed to Exam" and is taken to `/blind-exam`.
-- If instructions exist, they are read aloud first.
-- The student presses Enter or clicks "Start Questions" to begin.
+- Student logs in with roll number and DOB, selects Voice or Visual exam type.
+- Dashboard shows available papers; student clicks **Start Exam** for a paper.
+- For voice: redirect to `/blind-exam`. For deaf: redirect to `/deaf-exam`.
+- If instructions exist (voice), they are read aloud first; then student starts questions.
 
 ### Step 3: Answering Questions
 - Each question is displayed one at a time and **read aloud automatically**.
@@ -181,13 +259,25 @@ accessible-exam/
 
 | Method | Endpoint | Description |
 |--------|---------|-------------|
-| GET | `/` | Home page — mode selection |
-| GET/POST | `/blind` | Upload page — handles file upload & OCR |
-| GET | `/blind-exam` | Exam page — loads questions from stored data |
-| POST | `/api/save-answer` | AJAX — saves a single answer `{ question_index, answer }` |
-| GET | `/api/get-answers` | AJAX — retrieves all saved answers |
-| GET | `/completed` | Completion page — shows answer summary |
-| GET | `/reset` | Clears session and redirects to upload page |
+| GET | `/` | Login — Teacher or Student (voice/visual) |
+| GET/POST | `/teacher/login` | Teacher login |
+| GET | `/teacher/dashboard` | Upload papers, list submissions |
+| POST | `/teacher/upload` | Upload question paper (PDF/image) |
+| GET | `/teacher/paper/<paper_id>/submissions` | List submitted answer sheets |
+| GET | `/teacher/view-answer-sheet/<exam_id>` | View answer sheet (printable) |
+| GET | `/teacher/download-answer-sheet/<exam_id>.csv` | Download CSV for evaluation |
+| GET/POST | `/student/login` | Student login (roll, DOB, exam type) |
+| GET | `/student/dashboard` | Available papers, Start Exam |
+| GET | `/student/start-exam/<paper_id>` | Start exam (voice or deaf) |
+| GET | `/blind-exam` | Voice exam page |
+| GET | `/deaf-exam` | Deaf mode exam page |
+| POST | `/api/save-answer` | AJAX — save answer (blind) |
+| POST | `/submit_deaf_answer` | AJAX — save answer (deaf) |
+| GET | `/api/get-answers` | AJAX — get saved answers |
+| POST | `/process_gesture`, `/process_word`, `/process_sign` | Sign-language APIs |
+| GET | `/completed` | Completion — answer summary |
+| GET | `/logout` | Logout |
+| GET | `/reset` | Clear exam session |
 
 ---
 
@@ -206,7 +296,8 @@ pip3 install -r requirements.txt
 python3 app.py
 ```
 
-Then open **http://127.0.0.1:5000** in your browser.
+Then open **http://127.0.0.1:5000** in your browser.  
+See the **Requirements** section above for what each dependency is used for.
 
 ### Using a Virtual Environment (optional)
 
@@ -221,23 +312,20 @@ python app.py
 
 ## Important Notes
 
-- The `exam_data/` folder contains JSON files that are automatically created per exam session. They store the extracted questions, instructions, and student answers. These files can be safely deleted after use.
-- The `uploads/` folder stores uploaded question paper files (images/PDFs). These can also be cleared periodically.
-- **Best browser**: Google Chrome (full Web Speech API support for both TTS and STT).
-- Speech Recognition requires **microphone permission** — the browser will prompt for it.
-- TTS works offline using built-in browser voices. STT requires an internet connection on Chrome.
+- **Data:** Exam sessions and answers are stored in **SQLite** (`data/exam.db`). Teachers see submissions per paper and can **View** or **Download CSV** for evaluation. JSON in `exam_data/` and `data/` is still used for session data and config.
+- **uploads/** stores uploaded question papers; **exam_data/** holds per-session JSON; both can be cleared periodically.
+- **Best browser:** Google Chrome (full Web Speech API for TTS and STT).
+- **Microphone:** Speech Recognition needs microphone permission when the student uses voice answer.
+- TTS works offline (browser voices). STT on Chrome typically needs an internet connection.
 
 ---
 
 ## Future Enhancements (Scope for Extension)
 
-- **Deaf & Mute Mode** — Sign language recognition using camera + ML models.
-- **Timer support** — Configurable exam duration with audio countdown warnings.
+- **Timer support** — Configurable exam duration with audio countdown.
 - **Multi-language support** — TTS/STT in regional languages.
-- **Admin dashboard** — For staff to manage question papers and view submitted answers.
-- **Database integration** — Replace JSON files with a proper database (SQLite/PostgreSQL).
-- **Answer export** — Download answers as PDF for evaluation.
-- **Authentication** — Student login with roll number verification.
+- **Answer export as PDF** — In addition to CSV.
+- **Stronger authentication** — e.g. roll number verification, password for students.
 
 ---
 

@@ -54,7 +54,7 @@
         aria-label="Go back to my exams">
         Back to My Exams
       </a>
-      <a href="{{ url_for('logout') }}" class="btn btn-nav"
+      <a href="{{ url_for('logout') }}" class="btn btn-nav stop-voice-on-logout"
         aria-label="Logout">
         Logout
       </a>
@@ -74,6 +74,10 @@
     var questions = _data.questions;
     var total     = _data.total;
 
+    function stopVoice() {
+      if (synth && synth.cancel) synth.cancel();
+    }
+
     function speakMsg(text) {
       synth.cancel();
       var u = new SpeechSynthesisUtterance(text);
@@ -92,14 +96,22 @@
 
     document.getElementById('btn-read-all').addEventListener('click', readAllAnswers);
 
+    /* Stop voice only when user clicks Logout (not on Back to My Exams or refresh) */
+    document.querySelectorAll('a.stop-voice-on-logout').forEach(function (link) {
+      link.addEventListener('click', function () {
+        stopVoice();
+      });
+    });
+
     /* Keyboard shortcut: R to read all */
     document.addEventListener('keydown', function (e) {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key.toLowerCase() === 'r') { e.preventDefault(); readAllAnswers(); }
     });
 
-    /* Auto-speak on load */
+    /* Auto-speak on load (and on refresh: clear any stale speech so voice starts from first) */
     window.addEventListener('load', function () {
+      stopVoice();
       setTimeout(function () {
         var answered = Object.keys(answers).length;
         speakMsg(

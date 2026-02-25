@@ -1,47 +1,33 @@
-# Accessible Exam Tool — Dependencies
+# Accessible Exam Tool — Python dependencies
+# Install: pip install -r requirements.txt
+# Run from: accessible-exam/ (see README.md)
 
 # Web framework
 flask>=2.0.0
 
-# Computer vision (sign language gesture detection)
+# PDF question papers: extract text from uploaded PDFs
+pypdf>=3.0
+
+# Image question papers + OCR: extract text from images (PNG, JPG, etc.)
+Pillow
+pytesseract
+
+# Sign language (Deaf mode): hand detection and gesture/word recognition
 opencv-python-headless>=4.5.0,<4.6
 numpy<2
 protobuf<4
-
-# Letter/word training (only if you run train_alphabet_model.py or train_word_model.py)
-scikit-learn>=1.0
-
-# Optional: for CNN letter model (train_alphabet_cnn.py). Skip if you only use action.pkl.
-# pip install tensorflow
-
-# MediaPipe: use mediapipe-silicon on Apple Silicon Macs, mediapipe on other platforms
 mediapipe
 
-# PDF text extraction (question paper)
-pypdf>=3.0
+# -------------------------------------------------------
+# Optional — only if you train sign-language models locally
+# -------------------------------------------------------
+# For letter model (train_alphabet_model.py) and word model (train_word_model.py):
+scikit-learn>=1.0
 
-# Image processing / OCR
-Pillow
-pytesseract
-Pillow
-
-# PDF text extraction (for question papers uploaded as PDF)
-pypdf
-
-# Werkzeug (included with Flask — used for secure_filename)
-# werkzeug
+# For CNN letter model (train_alphabet_cnn.py); skip if using action.pkl only:
+# pip install tensorflow
 
 # -------------------------------------------------------
-# NOTE: pyttsx3, SpeechRecognition, and PyAudio have been
-# removed.  Text-to-Speech and Speech-to-Text now run
-# entirely in the browser via the Web Speech API, which:
-#   - Eliminates server blocking
-#   - Provides instant, real-time responses
-#   - Removes the need for PyAudio system dependencies
-#   - Works offline for TTS (browser-native voices)
+# TTS & STT run in the browser (Web Speech API), not on the server.
+# No pyttsx3, SpeechRecognition, or PyAudio needed for the app.
 # -------------------------------------------------------
-
-# Audio / Speech (for deaf/mute integration features if needed on server side)
-pyttsx3
-SpeechRecognition
-pyaudio
