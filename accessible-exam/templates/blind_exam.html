@@ -460,6 +460,8 @@
       else say('Last question. Submit or review.');
     }
     function prev() { hush(); if (phase === 'questions' && qIdx > 0) { qIdx--; showQ(); } }
+
+    
     function saveAnswer(idx, text) {
       fetch('/api/save-answer', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
