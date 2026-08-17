@@ -908,6 +908,8 @@
                 stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 els.video.srcObject = stream;
                 els.startCamBtn.style.display = 'none';
+                els.signVal.innerText = 'Show hand to camera';
+                els.signVal.style.color = '#aaa';
                 if (els.btnCaptureLetter) els.btnCaptureLetter.disabled = false;
                 if (els.btnCaptureNumber) els.btnCaptureNumber.disabled = false;
                 if (els.btnInsertLetter) els.btnInsertLetter.disabled = false;
@@ -983,6 +985,8 @@
                 .then(res => res.json())
                 .then(data => {
                     var g = (data.gesture || '').toString().trim();
+                    var handDetected = data.hand_detected === true;
+                    var conf = data.confidence || 0;
                     if (g.length > 1) g = g.charAt(0);
                     gestureBuffer.push(g || '');
                     if (gestureBuffer.length > GESTURE_BUFFER_SIZE) gestureBuffer.shift();
@@ -990,29 +994,21 @@
                     gestureBuffer.forEach(function(x) { counts[x] = (counts[x] || 0) + 1; });
                     var best = '', bestCount = 0;
                     for (var k in counts) {
-                        // Only recommend letters in live preview; numbers only when user clicks Number
-                        // Use >= 1 so letters get added to Current even with single detection
-                        if (k && /^[A-Za-z]$/.test(k) && counts[k] >= 1 && counts[k] > bestCount) {
+                        if (k && /^[A-Za-z0-9]$/.test(k) && counts[k] >= 1 && counts[k] > bestCount) {
                             best = k;
                             bestCount = counts[k];
                         }
                     }
                     if (best) {
-                        els.signVal.innerText = best;
+                        els.signVal.innerText = best + (conf > 0 ? " (" + Math.round(conf * 100) + "%)" : "");
                         els.signVal.style.color = '#fdd835';
-                        // Auto-add predicted letter to Current and refresh suggestions
-                        var bestNorm = best.toUpperCase();
-                        if (lastAutoAddedLetter.toUpperCase() !== bestNorm) {
-                            spellCurrentWord += best.toLowerCase();
-                            lastAutoAddedLetter = best;
-                            if (els.spellCurrent) els.spellCurrent.textContent = spellCurrentWord || '—';
-                            updateSpellUI();
-                            if (els.captureStatus) els.captureStatus.textContent = 'Added: ' + best + ' — suggestions updated.';
-                        }
+                        if (els.btnInsertLetter) els.btnInsertLetter.disabled = false;
+                    } else if (handDetected) {
+                        els.signVal.innerText = "Hand detected — hold steady";
+                        els.signVal.style.color = '#81c784';
                     } else {
-                        els.signVal.innerText = "Hold sign steady";
+                        els.signVal.innerText = "Show hand to camera";
                         els.signVal.style.color = '#aaa';
-                        lastAutoAddedLetter = '';  // reset so next letter can be added
                     }
                 })
                 .catch(function (err) {

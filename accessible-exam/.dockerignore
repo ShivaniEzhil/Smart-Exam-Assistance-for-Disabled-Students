@@ -1,0 +1,11 @@
+venv/
+.pdf_venv/
+__pycache__/
+*.pyc
+.git/
+.DS_Store
+.vscode/
+.idea/
+sign_language_training/WLASL-master/start_kit/videos/
+MP_Data/
+WLASL_Hand_Data/

@@ -2,8 +2,9 @@
 # Install: pip install -r requirements.txt
 # Run from: accessible-exam/ (see README.md)
 
-# Web framework
+# Web framework & production WSGI server
 flask>=2.0.0
+gunicorn>=21.2.0
 
 # PDF question papers: extract text from uploaded PDFs
 pypdf>=3.0
@@ -15,8 +16,7 @@ pytesseract
 # Sign language (Deaf mode): hand detection and gesture/word recognition
 opencv-python-headless>=4.5.0,<4.6
 numpy<2
-protobuf<4
-mediapipe
+mediapipe>=0.10.0,<=0.10.30
 
 # -------------------------------------------------------
 # Optional — only if you train sign-language models locally

@@ -875,25 +875,32 @@ def deaf():
 # ROUTES — DEAF EXAM (Sign Language Logic)
 # =====================================================
 import base64
+import threading
 import numpy as np
 
 gesture_recognizer = None
 word_model_recognizer = None
+_model_init_lock = threading.Lock()
+_inference_lock = threading.Lock()
 
 def get_gesture_model():
     global gesture_recognizer
     if gesture_recognizer is None and GestureModel:
-        gesture_recognizer = GestureModel()
+        with _model_init_lock:
+            if gesture_recognizer is None and GestureModel:
+                gesture_recognizer = GestureModel()
     return gesture_recognizer
 
 def get_word_model():
     global word_model_recognizer
     if word_model_recognizer is None and WordModel:
-        word_model_recognizer = WordModel()
-        # If word model's hand detector failed to init, reuse gesture model's (same MediaPipe)
-        gm = get_gesture_model()
-        if gm and getattr(gm, "detector", None) and getattr(word_model_recognizer, "detector", None) is None:
-            word_model_recognizer.set_detector(gm.detector)
+        with _model_init_lock:
+            if word_model_recognizer is None and WordModel:
+                word_model_recognizer = WordModel()
+                # If word model's hand detector failed to init, reuse gesture model's (same MediaPipe)
+                gm = get_gesture_model()
+                if gm and getattr(gm, "detector", None) and getattr(word_model_recognizer, "detector", None) is None:
+                    word_model_recognizer.set_detector(gm.detector)
     return word_model_recognizer
 
 @app.route('/sign_models_status', methods=['GET'])
@@ -1004,14 +1011,21 @@ def process_gesture():
         if not frames:
             return jsonify({'gesture': None, 'error': 'Invalid image(s)'})
 
-        if len(frames) >= 5:
-            gesture = model.process_frames_vote(frames, min_votes=3)
-        elif len(frames) >= 2:
-            gesture = model.process_frames_vote(frames, min_votes=2)
-        else:
-            gesture = model.process_frame(frames[0])
-        letter, conf = model.process_frame_with_confidence(frames[0])
-        out = {'gesture': gesture, 'confidence': round(conf, 3)}
+        with _inference_lock:
+            if len(frames) >= 5:
+                gesture = model.process_frames_vote(frames, min_votes=3)
+                _, conf = model.process_frame_with_confidence(frames[0])
+            elif len(frames) >= 2:
+                gesture = model.process_frames_vote(frames, min_votes=2)
+                _, conf = model.process_frame_with_confidence(frames[0])
+            else:
+                gesture, conf = model.process_frame_with_confidence(frames[0])
+
+        out = {
+            'gesture': gesture,
+            'confidence': round(conf, 3),
+            'hand_detected': bool(conf > 0.0 or gesture is not None)
+        }
         return jsonify(out)
     except Exception as e:
         print(f"Error processing gesture: {e}")
@@ -1050,7 +1064,8 @@ def process_word():
     if len(frames) < 3:
         return jsonify({'word': None})
     try:
-        word = model.process_sequence(frames)
+        with _inference_lock:
+            word = model.process_sequence(frames)
         return jsonify({'word': word})
     except Exception as e:
         print('Error processing word:', e)
@@ -1087,27 +1102,28 @@ def process_sign():
         except Exception:
             continue
 
-    # Word model only when not restricting to letter/number
-    if not mode and len(frames) >= 3:
-        word_model = get_word_model()
-        if word_model and getattr(word_model, 'ml_model', None):
-            try:
-                word = word_model.process_sequence(frames)
-                if word:
-                    return jsonify({'sign': word, 'source': 'word'})
-            except Exception as e:
-                print('Word model error:', e)
+    with _inference_lock:
+        # Word model only when not restricting to letter/number
+        if not mode and len(frames) >= 3:
+            word_model = get_word_model()
+            if word_model and getattr(word_model, 'ml_model', None):
+                try:
+                    word = word_model.process_sequence(frames)
+                    if word:
+                        return jsonify({'sign': word, 'source': 'word'})
+                except Exception as e:
+                    print('Word model error:', e)
 
-    gesture_model = get_gesture_model()
-    if not gesture_model or not frames:
-        return jsonify({'sign': None})
+        gesture_model = get_gesture_model()
+        if not gesture_model or not frames:
+            return jsonify({'sign': None})
 
-    if len(frames) >= 5:
-        gesture = gesture_model.process_frames_vote(frames, min_votes=3)
-    elif len(frames) >= 2:
-        gesture = gesture_model.process_frames_vote(frames, min_votes=2)
-    else:
-        gesture = gesture_model.process_frame(frames[0])
+        if len(frames) >= 5:
+            gesture = gesture_model.process_frames_vote(frames, min_votes=3)
+        elif len(frames) >= 2:
+            gesture = gesture_model.process_frames_vote(frames, min_votes=2)
+        else:
+            gesture = gesture_model.process_frame(frames[0])
 
     if not gesture:
         return jsonify({'sign': None})
